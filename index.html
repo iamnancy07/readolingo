@@ -1598,14 +1598,14 @@ const ADD_BOOK_SCHEMA = {
   properties:{
     title:{type:"string"},
     author:{type:"string"},
-    chapters:{type:"integer", minimum:1},
+    chapters:{type:"integer"},
     mc:{type:"array", items:{ type:"object", additionalProperties:false,
       required:["q","options","answer","topic","diff","chapter"],
       properties:{ q:{type:"string"}, options:{type:"array", items:{type:"string"}, minItems:4, maxItems:4},
-        answer:{type:"integer", minimum:0, maximum:3}, topic:{type:"string"}, diff:{type:"string", enum:["E","M","H"]}, chapter:{type:"integer", minimum:1} } }},
+        answer:{type:"integer"}, topic:{type:"string"}, diff:{type:"string", enum:["E","M","H"]}, chapter:{type:"integer"} } }},
     oe:{type:"array", items:{ type:"object", additionalProperties:false,
       required:["q","keywords","model","chapter"],
-      properties:{ q:{type:"string"}, keywords:{type:"array", items:{type:"string"}, minItems:5}, model:{type:"string"}, chapter:{type:"integer", minimum:1} } }}
+      properties:{ q:{type:"string"}, keywords:{type:"array", items:{type:"string"}, minItems:5}, model:{type:"string"}, chapter:{type:"integer"} } }}
   }
 };
 
