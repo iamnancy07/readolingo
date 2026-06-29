@@ -227,6 +227,47 @@
     </div>
   </section>
 
+  <!-- ===== CHAPTER SELECTION ===== -->
+  <section id="screen-chapters" class="screen">
+    <div class="card">
+      <h2 id="ch-title">Select Chapters</h2>
+      <p style="color:var(--muted);font-size:.85rem;" id="ch-subtitle"></p>
+
+      <div style="margin:16px 0;">
+        <label style="display:block;font-weight:700;margin-bottom:8px;">📖 Which chapters did you read?</label>
+        <div style="display:flex;gap:10px;margin-bottom:12px;">
+          <div style="flex:1;">
+            <label style="font-size:.85rem;color:var(--muted);">Start</label>
+            <input id="ch-start" type="number" min="1" value="1" style="width:100%;"/>
+          </div>
+          <div style="flex:1;">
+            <label style="font-size:.85rem;color:var(--muted);">End</label>
+            <input id="ch-end" type="number" min="1" value="1" style="width:100%;"/>
+          </div>
+        </div>
+        <p style="font-size:.8rem;color:var(--muted);margin-bottom:12px;" id="ch-range-label"></p>
+      </div>
+
+      <div style="margin:16px 0;">
+        <label style="display:block;font-weight:700;margin-bottom:8px;">📄 Or specify pages (optional)</label>
+        <div style="display:flex;gap:10px;">
+          <div style="flex:1;">
+            <label style="font-size:.85rem;color:var(--muted);">Start page</label>
+            <input id="ch-page-start" type="number" min="1" placeholder="1" style="width:100%;"/>
+          </div>
+          <div style="flex:1;">
+            <label style="font-size:.85rem;color:var(--muted);">End page</label>
+            <input id="ch-page-end" type="number" min="1" placeholder="10" style="width:100%;"/>
+          </div>
+        </div>
+      </div>
+
+      <p id="ch-msg" class="note" style="min-height:1em;"></p>
+      <button class="btn" onclick="startChapterQuiz()">📚 Start Quiz</button>
+      <button class="btn ghost" onclick="goBooks(currentGenreForChapter)">Cancel</button>
+    </div>
+  </section>
+
   <!-- ===== ADD A BOOK (AI-Powered) ===== -->
   <section id="screen-addbook" class="screen">
     <div class="card">
@@ -1404,7 +1445,7 @@ function goBooks(genre){
     const idx=list.indexOf(b);
     const cover=b.cover?`<img src="${b.cover}" style="width:34px;height:46px;object-fit:cover;border-radius:6px;margin-right:10px;" />`:'';
     const right=b.custom?`<span class="link" onclick="event.stopPropagation();deleteCustom(${idx})">🗑</span>`:'<span>▶️</span>';
-    return `<div class="row" onclick="startBook(${idx})">
+    return `<div class="row" onclick="startBook(${idx}, '${genre}')">
       <div style="display:flex;align-items:center;">${cover}<div><div style="font-weight:700;">${escapeHtml(b.title)}${b.custom?'<span class="genre-pill">yours</span>':''}</div>
       <div class="meta">${escapeHtml(b.author)}</div></div></div>${right}</div>`;
   }).join('');
@@ -1477,6 +1518,7 @@ async function aiAddBook(){
     const data=await callClaudeForAddBook(key, abScreenshot, genre);
     const mcN=data.questions.length, oeN=data.oeBank.length;
     const book={ title:data.title, author:data.author, genre:genre, custom:true, ai:true,
+      chapters:data.chapters, chapterRead:data.chapterRead,
       questions:data.questions, oeBank:data.oeBank };
     APP.customBooks=APP.customBooks||[]; APP.customBooks.push(book); saveState();
     msg.style.color='var(--green-dark)';
@@ -1503,16 +1545,15 @@ async function callClaudeForAddBook(key, imageBase64, selectedGenre){
   const genres=genreList().join(', ');
   const prompt=`You are examining a book cover image and will generate exactly 10 comprehension questions for it.
 
-First, IDENTIFY the book from the cover image and extract the title and author. If you can't identify it, make your best guess from any visible text.
+First, IDENTIFY the book from the cover image and extract the title and author. If you can't identify it, make your best guess from any visible text. Also determine the TOTAL NUMBER OF CHAPTERS in the book.
 
 Then, write exactly ${mcTarget} multiple-choice questions and ${oeTarget} explain-your-thinking questions for this book.
 
-Multiple-choice: Each has exactly 4 options. "answer" is the 0-based index (0, 1, 2, or 3) of the correct option. Set "topic" to Plot, Characters, Setting, Theme, or Vocabulary. Set "diff" to one of these: ${diffs.join(', ')}.
+Multiple-choice: Each has exactly 4 options. "answer" is the 0-based index (0, 1, 2, or 3) of the correct option. Set "topic" to Plot, Characters, Setting, Theme, or Vocabulary. Set "diff" to one of these: ${diffs.join(', ')}. IMPORTANT: Set "chapter" to the chapter number (1 to total chapters) that this question covers.
 
-Explain-your-thinking: For each, provide 5+ lowercase "keywords" that a correct answer MUST contain (each answer must be at least one full sentence and include ALL these keywords). Also provide a one-sentence "model" answer showing the minimum acceptable response.
+Explain-your-thinking: For each, provide 5+ lowercase "keywords" that a correct answer MUST contain (each answer must be at least one full sentence and include ALL these keywords). Also provide a one-sentence "model" answer showing the minimum acceptable response. IMPORTANT: Set "chapter" to the chapter number (1 to total chapters) that this question covers.
 
 All questions should be roughly the same difficulty level based on grade ${APP.grade}.
-Set "genre" to the best match from: ${genres}.
 Return ONLY a valid JSON object (no markdown, no explanation).`;
 
   const body={
@@ -1543,25 +1584,28 @@ Return ONLY a valid JSON object (no markdown, no explanation).`;
   return {
     title:data.title||'Unknown Book',
     author:data.author||'Unknown Author',
+    chapters:data.chapters||1,
+    chapterRead:{start:1, end:data.chapters||1},
     questions:(data.mc||[]).map(q=>({ q:q.q, options:q.options, answer:q.answer|0,
-      topic:q.topic||'Plot', diff:String(q.diff||'M').toUpperCase().slice(0,1) })),
-    oeBank:(data.oe||[]).map(o=>({ q:o.q, keywords:(o.keywords||[]).map(k=>String(k).toLowerCase()), model:o.model }))
+      topic:q.topic||'Plot', diff:String(q.diff||'M').toUpperCase().slice(0,1), chapter:q.chapter||1 })),
+    oeBank:(data.oe||[]).map(o=>({ q:o.q, keywords:(o.keywords||[]).map(k=>String(k).toLowerCase()), model:o.model, chapter:o.chapter||1 }))
   };
 }
 
 const ADD_BOOK_SCHEMA = {
   type:"object", additionalProperties:false,
-  required:["title","author","mc","oe"],
+  required:["title","author","chapters","mc","oe"],
   properties:{
     title:{type:"string"},
     author:{type:"string"},
+    chapters:{type:"integer", minimum:1},
     mc:{type:"array", items:{ type:"object", additionalProperties:false,
-      required:["q","options","answer","topic","diff"],
+      required:["q","options","answer","topic","diff","chapter"],
       properties:{ q:{type:"string"}, options:{type:"array", items:{type:"string"}, minItems:4, maxItems:4},
-        answer:{type:"integer", minimum:0, maximum:3}, topic:{type:"string"}, diff:{type:"string", enum:["E","M","H"]} } }},
+        answer:{type:"integer", minimum:0, maximum:3}, topic:{type:"string"}, diff:{type:"string", enum:["E","M","H"]}, chapter:{type:"integer", minimum:1} } }},
     oe:{type:"array", items:{ type:"object", additionalProperties:false,
-      required:["q","keywords","model"],
-      properties:{ q:{type:"string"}, keywords:{type:"array", items:{type:"string"}, minItems:5}, model:{type:"string"} } }}
+      required:["q","keywords","model","chapter"],
+      properties:{ q:{type:"string"}, keywords:{type:"array", items:{type:"string"}, minItems:5}, model:{type:"string"}, chapter:{type:"integer", minimum:1} } }}
   }
 };
 
@@ -1691,10 +1735,75 @@ function buildQuizItems(b){
   }
   return [...mc, ...oe];
 }
-function startBook(idx){
+function buildQuizItemsWithChapters(b, chStart, chEnd){
+  const cfg=GRADE_CFG[APP.grade]||GRADE_CFG['2-3'];
+  const rank={E:0,M:1,H:2};
+  const bandRanks=cfg.diffs.map(d=>rank[d]);
+  const dist=q=>Math.min(...bandRanks.map(r=>Math.abs((rank[q.diff]??1)-r)));
+  const all=(b.questions||[]).filter(q=>q.chapter>=chStart && q.chapter<=chEnd).slice();
+  const ordered=shuffle(all).sort((x,y)=>dist(x)-dist(y));
+  const oeBank=(b.oeBank||[]).filter(q=>q.chapter>=chStart && q.chapter<=chEnd);
+  const wantTotal=10;
+  const availTotal=Math.min(wantTotal, ordered.length + oeBank.length);
+  let oeN=Math.min(Math.ceil(availTotal*0.4), oeBank.length);
+  let mcN=availTotal-oeN;
+  if(mcN>ordered.length){ oeN+=mcN-ordered.length; mcN=ordered.length; }
+  const mc=ordered.slice(0, mcN).map(q=>({...q, type:'mc'}));
+  const used=new Set(mc.map(q=>q.q));
+  let oe=shuffle(oeBank.slice()).slice(0, oeN).map(o=>({type:'oe', q:o.q, model:o.model, keywords:o.keywords, topic:'Custom'}));
+  if(oe.length<oeN){
+    const remain=ordered.filter(q=>!used.has(q.q)).sort((x,y)=> dist(x)-dist(y) || oePref(y)-oePref(x));
+    oe=oe.concat(remain.slice(0, oeN-oe.length).map(makeOE));
+  }
+  return [...mc, ...oe];
+}
+let selectedBookIdx=null, currentGenreForChapter=null;
+function startBook(idx, genre){
   const b=allBooks()[idx];
-  quiz={ book:b.title, author:b.author, genre:b.genre, questions:buildQuizItems(b), current:0, answers:[], selected:null, checked:false, startTime:0 };
-  document.getElementById('skim-sub').textContent=`“${b.title}” by ${b.author}`;
+  selectedBookIdx=idx;
+  currentGenreForChapter=genre;
+  if(!b.chapters){ quiz={ book:b.title, author:b.author, genre:b.genre, questions:buildQuizItems(b), current:0, answers:[], selected:null, checked:false, startTime:0 };
+    document.getElementById('skim-sub').textContent=`”${b.title}” by ${b.author}`;
+    show('skim');
+    setTimeout(()=>{ quiz.startTime=Date.now(); renderQuestion(); show('quiz'); }, 1800);
+  } else {
+    goChapters(idx);
+  }
+}
+function goChapters(idx){
+  const b=allBooks()[idx];
+  const chRead=b.chapterRead||{start:1, end:b.chapters};
+  document.getElementById('ch-title').textContent=`Select Chapters: “${b.title}”`;
+  document.getElementById('ch-subtitle').textContent=`${b.author} · ${b.chapters} total chapter${b.chapters>1?'s':''}`;
+  document.getElementById('ch-start').value=chRead.start;
+  document.getElementById('ch-end').value=chRead.end;
+  document.getElementById('ch-end').max=b.chapters;
+  document.getElementById('ch-start').max=b.chapters;
+  document.getElementById('ch-page-start').value='';
+  document.getElementById('ch-page-end').value='';
+  document.getElementById('ch-msg').textContent='';
+  document.getElementById('ch-start').onchange=updateChapterLabel;
+  document.getElementById('ch-end').onchange=updateChapterLabel;
+  updateChapterLabel();
+  show('chapters');
+}
+function updateChapterLabel(){
+  const start=parseInt(document.getElementById('ch-start').value)||1;
+  const end=parseInt(document.getElementById('ch-end').value)||1;
+  document.getElementById('ch-range-label').textContent=`You selected chapters ${start} to ${end}`;
+}
+function startChapterQuiz(){
+  const b=allBooks()[selectedBookIdx];
+  const start=parseInt(document.getElementById('ch-start').value)||1;
+  const end=parseInt(document.getElementById('ch-end').value)||1;
+  const msg=document.getElementById('ch-msg');
+  if(start<1 || end<start || end>b.chapters){ msg.style.color='var(--red)'; msg.textContent='Invalid chapter range.'; return; }
+  b.chapterRead={start, end};
+  saveState();
+  const quizQuestions=buildQuizItemsWithChapters(b, start, end);
+  if(quizQuestions.length<10){ msg.style.color='var(--red)'; msg.textContent='Not enough questions in selected chapters (need at least 10).'; return; }
+  quiz={ book:b.title, author:b.author, genre:b.genre, chapters:{total:b.chapters, selected:{start,end}}, questions:quizQuestions, current:0, answers:[], selected:null, checked:false, startTime:0 };
+  document.getElementById('skim-sub').textContent=`”${b.title}” by ${b.author}`;
   show('skim');
   setTimeout(()=>{ quiz.startTime=Date.now(); renderQuestion(); show('quiz'); }, 1800);
 }
