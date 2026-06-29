@@ -1,0 +1,2051 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Readolingo 📚</title>
+<style>
+  :root {
+    --green: #58cc02; --green-dark: #58a700; --blue: #1cb0f6; --blue-dark:#1493d0;
+    --red: #ff4b4b; --yellow: #ffc800; --text: #3c3c3c; --muted: #777;
+    --border: #e5e5e5; --card: #f7f7f7;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: linear-gradient(135deg,#eaf7d6,#d6f0ff,#efe3ff,#fff1d6,#eaf7d6); background-size: 300% 300%; animation: bgShift 22s ease infinite; color: var(--text); min-height: 100vh; padding: 16px; position: relative; }
+  .app { max-width: 680px; margin: 0 auto; position: relative; z-index: 1; }
+
+  /* Animated background */
+  @keyframes bgShift { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
+  #bg-layer { position: fixed; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
+  #bg-layer .floaty { position: absolute; bottom: -70px; opacity: 0; animation: floatUp linear infinite; will-change: transform; }
+  @keyframes floatUp {
+    0%   { transform: translateY(0) rotate(0deg); opacity: 0; }
+    12%  { opacity: .22; }
+    88%  { opacity: .22; }
+    100% { transform: translateY(-112vh) rotate(300deg); opacity: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) { body { animation: none !important; } #bg-layer { display: none; } }
+  /* Brighter, livelier background just for the starting/welcome page */
+  body.welcome-bg { background: linear-gradient(135deg,#7bed9f,#56ccf2,#a18cd1,#ff9a9e,#ffd86f); background-size: 320% 320%; animation: bgShift 16s ease infinite; }
+  /* Clear selected state for the grade tiles */
+  .nav-tile.sel { background: var(--green); color:#fff; border-color: var(--green-dark); }
+  .nav-tile.sel small { color:#eaffea !important; }
+  /* Trainer fire (flickers when earned) */
+  @keyframes flameFlicker { 0%,100%{filter:brightness(1) saturate(1);} 50%{filter:brightness(1.18) saturate(1.25);} }
+  .trainer.fire-on { animation: flameFlicker 1.3s ease-in-out infinite; }
+  header.brand { text-align: center; margin-bottom: 16px; }
+  header.brand h1 { font-size: 2rem; color: var(--green-dark); letter-spacing: -1px; }
+  header.brand p { color: var(--muted); font-size: .9rem; }
+
+  .screen { display: none; }
+  .screen.active { display: block; animation: fade .25s ease; }
+  @keyframes fade { from { opacity: 0; transform: translateY(6px);} to {opacity:1; transform:none;} }
+
+  .card { background: #fff; border: 2px solid var(--border); border-radius: 16px; padding: 18px; margin-bottom: 14px; }
+  h2 { font-size: 1.35rem; margin-bottom: 10px; }
+  h3 { font-size: 1rem; margin: 10px 0 4px; }
+  label { display:block; font-weight: 600; margin: 10px 0 6px; font-size: .9rem; }
+  input, select { width: 100%; padding: 12px 14px; border: 2px solid var(--border); border-radius: 12px; font-size: 1rem; font-family: inherit; }
+  input:focus, select:focus { outline: none; border-color: var(--blue); }
+
+  .btn { display:block; width: 100%; padding: 14px; border: none; border-radius: 14px; background: var(--green); color: #fff; font-weight: 700; font-size: 1rem; cursor: pointer; box-shadow: 0 4px 0 var(--green-dark); transition: transform .05s, box-shadow .05s; text-transform: uppercase; letter-spacing: .5px; margin-top: 12px; }
+  .btn:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--green-dark); }
+  .btn.secondary { background: var(--blue); box-shadow: 0 4px 0 var(--blue-dark); }
+  .btn.ghost { background:#fff; color: var(--blue); border:2px solid var(--border); box-shadow:none; }
+  .btn.gold { background: var(--yellow); box-shadow: 0 4px 0 #d9a900; color:#7a5b00; }
+  .btn:disabled { opacity:.5; cursor:not-allowed; }
+  .btn-row { display:flex; gap:10px; }
+  .btn-row .btn { margin-top: 12px; }
+
+  /* Currency bar */
+  .wallet { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-bottom:12px; }
+  .coin { background:var(--card); border:2px solid var(--border); border-radius:20px; padding:6px 14px; font-weight:700; font-size:.95rem; }
+
+  /* Trainer card */
+  .trainer { text-align:center; padding:18px; border-radius:16px; border:4px solid var(--blue); background:linear-gradient(180deg,#fff,#f3faff); position:relative; }
+  .trainer .icon { font-size:4.5rem; line-height:1; }
+  .trainer .tname { font-weight:800; font-size:1.2rem; margin-top:6px; }
+  .trainer .tier-label { font-size:.8rem; font-weight:700; }
+  .trainer .lvl { position:absolute; top:10px; right:10px; background:var(--green); color:#fff; border-radius:20px; padding:4px 10px; font-size:.8rem; font-weight:700; }
+  .accessory-row { margin-top:8px; font-size:1.4rem; min-height:1.4em; }
+
+  /* Generic lists / grids */
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .nav-tile { border:2px solid var(--border); border-radius:14px; padding:16px; text-align:center; cursor:pointer; background:var(--card); font-weight:700; transition:border-color .1s; }
+  .nav-tile:hover { border-color:var(--blue); }
+  .nav-tile .e { font-size:1.8rem; display:block; }
+
+  .row { display:flex; align-items:center; justify-content:space-between; padding:14px; border:2px solid var(--border); border-radius:12px; margin-bottom:10px; background:var(--card); cursor:pointer; }
+  .row:hover { border-color:var(--blue); }
+  .row .meta { font-size:.78rem; color:var(--muted); }
+  .score-pill { font-weight:700; padding:6px 12px; border-radius:20px; color:#fff; font-size:.85rem; }
+  .pass { background: var(--green); } .fail { background: var(--red); }
+  .empty { text-align:center; color:var(--muted); padding:20px; }
+  .genre-pill { display:inline-block; font-size:.7rem; background:#eef; color:#558; padding:2px 8px; border-radius:10px; margin-left:6px; }
+
+  /* Quiz */
+  .progress-wrap { background:var(--border); border-radius:20px; height:14px; overflow:hidden; margin-bottom:16px; }
+  .progress-bar { background:var(--green); height:100%; width:0; transition:width .3s; }
+  .q-count { font-size:.85rem; color:var(--muted); margin-bottom:8px; }
+  .q-text { font-size:1.2rem; font-weight:700; margin-bottom:16px; }
+  .option { display:block; width:100%; text-align:left; padding:14px; border:2px solid var(--border); border-radius:12px; margin-bottom:10px; background:#fff; cursor:pointer; font-size:1rem; font-family:inherit; transition: border-color .1s, background .1s; }
+  .option:hover { border-color: var(--blue); }
+  .option.selected { border-color: var(--blue); background:#e8f6ff; }
+  .option.correct { border-color: var(--green); background:#e9f9d9; }
+  .option.wrong { border-color: var(--red); background:#ffe9e9; }
+
+  .skim { text-align:center; padding:40px 20px; }
+  .skim .book-emoji { font-size:4rem; animation: flip 1s infinite; display:inline-block; }
+  @keyframes flip { 0%,100%{transform:rotateY(0);} 50%{transform:rotateY(180deg);} }
+
+  .big-score { font-size:3.2rem; font-weight:800; text-align:center; }
+  .result-emoji { font-size:3.5rem; text-align:center; }
+  .stat-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:14px 0; }
+  .stat { background:var(--card); border-radius:12px; padding:12px; text-align:center; }
+  .stat .num { font-size:1.25rem; font-weight:700; }
+  .stat .lbl { font-size:.72rem; color:var(--muted); }
+  .tag { display:inline-block; padding:4px 10px; border-radius:14px; font-size:.8rem; margin:3px; }
+  .tag.s { background:#e9f9d9; color:var(--green-dark); } .tag.w { background:#ffe9e9; color:var(--red); }
+  .reward-banner { text-align:center; background:#fff8e1; border:2px solid var(--yellow); border-radius:12px; padding:10px; font-weight:700; margin:10px 0; }
+
+  /* Shop chests */
+  .chest-card { border:2px solid var(--border); border-radius:14px; padding:16px; text-align:center; margin-bottom:12px; background:var(--card); }
+  .chest-card .e { font-size:3rem; }
+  .chest-card .nm { font-weight:800; margin-top:4px; }
+  .chest-card .desc { font-size:.78rem; color:var(--muted); margin:4px 0 8px; }
+
+  /* Chest opening */
+  .open-area { text-align:center; padding:24px 10px; }
+  .open-chest { font-size:6rem; cursor:pointer; user-select:none; transition:transform .08s; display:inline-block; }
+  .open-chest:active { transform:scale(.9) rotate(-4deg); }
+  .open-chest.shake { animation:shake .3s; }
+  @keyframes shake { 0%,100%{transform:none;} 25%{transform:translateX(-6px) rotate(-3deg);} 75%{transform:translateX(6px) rotate(3deg);} }
+  .tier-now { font-size:1.5rem; font-weight:800; margin:10px 0; }
+  .clicks-left { color:var(--muted); }
+
+  /* Skin cards */
+  .skin-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+  .skin { border:3px solid var(--border); border-radius:14px; padding:12px 6px; text-align:center; background:#fff; cursor:pointer; position:relative; }
+  .skin .e { font-size:2.2rem; }
+  .skin .sn { font-size:.72rem; font-weight:700; margin-top:4px; }
+  .skin .tr { font-size:.62rem; font-weight:700; }
+  .skin.equipped { box-shadow:0 0 0 3px var(--green) inset; }
+  .skin .eqbadge { position:absolute; top:4px; right:6px; font-size:.7rem; }
+  .prismatic { border-image: linear-gradient(45deg,#ff4b4b,#ffc800,#58cc02,#1cb0f6,#9b59b6) 1; }
+  .reveal-card { max-width:220px; margin:0 auto; text-align:center; border:4px solid var(--border); border-radius:16px; padding:20px; animation:pop .4s; }
+  @keyframes pop { from{transform:scale(.3);opacity:0;} to{transform:scale(1);opacity:1;} }
+  .reveal-card .e { font-size:4rem; }
+
+  .report-box { background:var(--card); border-radius:12px; padding:16px; font-size:.9rem; line-height:1.6; margin-top:10px; }
+  .note { font-size:.8rem; color:var(--muted); margin-top:8px; }
+  .warn { background:#fff8e1; border:1px solid var(--yellow); border-radius:10px; padding:10px; font-size:.82rem; margin-top:12px; }
+  .link { color:var(--blue); cursor:pointer; font-size:.85rem; font-weight:600; text-decoration:underline; }
+  .center { text-align:center; }
+</style>
+</head>
+<body>
+<div id="bg-layer" aria-hidden="true"></div>
+<div class="app">
+  <header class="brand">
+    <h1>📚 Readolingo</h1>
+    <p>Read it. Prove it. Level up.</p>
+  </header>
+
+  <!-- ===== WELCOME / GRADE SELECT ===== -->
+  <section id="screen-welcome" class="screen active">
+    <div class="card center">
+      <div style="font-size:3.5rem;">🎓</div>
+      <h2>Welcome to Readolingo!</h2>
+      <p style="color:var(--muted);font-size:.9rem;">Let's set you up. What's your name and grade?</p>
+      <label>Your name</label>
+      <input id="w-user" placeholder="e.g. Mia" />
+      <label>Choose your grade level</label>
+      <div class="grid" id="grade-tiles">
+        <div class="nav-tile" data-grade="2-3" onclick="selectGrade('2-3', this)"><span class="e">🧒</span>Grade 2–3<br><small style="color:var(--muted)">up to 10 Q · easier</small></div>
+        <div class="nav-tile" data-grade="4-5" onclick="selectGrade('4-5', this)"><span class="e">🧑</span>Grade 4–5<br><small style="color:var(--muted)">up to 15 Q · medium</small></div>
+        <div class="nav-tile" data-grade="6+" onclick="selectGrade('6+', this)"><span class="e">🎒</span>Grade 6 & up<br><small style="color:var(--muted)">up to 20 Q · harder</small></div>
+      </div>
+      <button class="btn" id="welcome-go" onclick="finishWelcome()">Let's go! →</button>
+      <p id="welcome-msg" class="note" style="color:var(--red);min-height:1em;"></p>
+    </div>
+  </section>
+
+  <!-- ===== HOME ===== -->
+  <section id="screen-home" class="screen">
+    <div class="card center" id="growth-card" style="padding:14px 16px;">
+      <div id="growth-box"></div>
+    </div>
+    <div class="wallet">
+      <span class="coin">🔥 <span id="w-streak">0</span></span>
+      <span class="coin">⭐ <span id="w-stars">0</span></span>
+      <span class="coin">🪙 <span id="w-coins">0</span></span>
+      <span class="coin">💎 <span id="w-diamonds">0</span></span>
+    </div>
+    <div class="card">
+      <div class="trainer" id="trainer-card"></div>
+      <div class="center" style="margin-top:8px;">
+        <span class="link" onclick="changeGrade()">Grade: <b id="home-grade">2-3</b> (change)</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="grid">
+        <div class="nav-tile" onclick="goGenres()"><span class="e">📖</span>Read a Book</div>
+        <div class="nav-tile" onclick="goShop()"><span class="e">🛍️</span>Shop</div>
+        <div class="nav-tile" onclick="goCollection()"><span class="e">🎒</span>Collection</div>
+        <div class="nav-tile" onclick="goUpgrade()"><span class="e">⬆️</span>Upgrade Trainer</div>
+        <div class="nav-tile" onclick="goCalendar()"><span class="e">📅</span>Streak Calendar</div>
+      </div>
+      <button class="btn secondary" onclick="goReport()">📨 Send Today's Report</button>
+    </div>
+    <div class="card">
+      <h2>Your Books 📚</h2>
+      <div id="book-list"></div>
+    </div>
+    <div class="card">
+      <h2>📊 Today's Average Score</h2>
+      <div id="day-avg"></div>
+    </div>
+  </section>
+
+  <!-- ===== GENRES ===== -->
+  <section id="screen-genres" class="screen">
+    <div class="card">
+      <h2>Pick a genre 🗂️</h2>
+      <div class="grid" id="genre-list"></div>
+      <button class="btn gold" onclick="goAddBook()">➕ Add Your Own Book</button>
+      <button class="btn secondary" onclick="goAI()">🤖 Generate a Book with AI</button>
+      <button class="btn ghost" onclick="goHome()">Back</button>
+    </div>
+  </section>
+
+  <!-- ===== BOOKS ===== -->
+  <section id="screen-books" class="screen">
+    <div class="card">
+      <h2 id="books-title">Books</h2>
+      <div id="book-choices"></div>
+      <button class="btn ghost" onclick="goGenres()">Back</button>
+    </div>
+  </section>
+
+  <!-- ===== ADD A BOOK ===== -->
+  <section id="screen-addbook" class="screen">
+    <div class="card">
+      <h2>➕ Add Your Own Book</h2>
+      <p style="color:var(--muted);font-size:.85rem;">Type the book details and write your own questions. It joins your library and plays like any other book.</p>
+      <label>Book title</label>
+      <input id="ab-title" placeholder="e.g. My Favorite Story" />
+      <label>Author</label>
+      <input id="ab-author" placeholder="e.g. A. Writer" />
+      <label>Genre</label>
+      <select id="ab-genre"></select>
+      <label>Cover photo / screenshot (optional)</label>
+      <input id="ab-cover" type="file" accept="image/*" />
+      <div id="ab-cover-preview" class="center"></div>
+    </div>
+
+    <div class="card">
+      <h3>🔘 Add a multiple-choice question</h3>
+      <input id="mc-q" placeholder="Question" />
+      <input id="mc-o1" placeholder="Option 1" style="margin-top:8px;" />
+      <input id="mc-o2" placeholder="Option 2" style="margin-top:8px;" />
+      <input id="mc-o3" placeholder="Option 3" style="margin-top:8px;" />
+      <input id="mc-o4" placeholder="Option 4" style="margin-top:8px;" />
+      <div class="grid" style="margin-top:8px;">
+        <select id="mc-correct">
+          <option value="0">Correct: Option 1</option>
+          <option value="1">Correct: Option 2</option>
+          <option value="2">Correct: Option 3</option>
+          <option value="3">Correct: Option 4</option>
+        </select>
+        <select id="mc-diff">
+          <option value="E">Easy (Grade 2–3+)</option>
+          <option value="M">Medium (Grade 4–5+)</option>
+          <option value="H">Hard (Grade 6+)</option>
+        </select>
+      </div>
+      <button class="btn secondary" onclick="addMCDraft()">Add this question</button>
+    </div>
+
+    <div class="card">
+      <h3>✏️ Add an explain-your-thinking question</h3>
+      <input id="oe-q" placeholder="Question (e.g. Why did the hero change?)" />
+      <input id="oe-kw" placeholder="Key words for a correct answer (comma separated)" style="margin-top:8px;" />
+      <input id="oe-model" placeholder="Sample strong answer" style="margin-top:8px;" />
+      <button class="btn secondary" onclick="addOEDraft()">Add this question</button>
+    </div>
+
+    <div class="card">
+      <h3>Questions added</h3>
+      <div id="draft-list"><div class="empty">No questions yet — add at least one above.</div></div>
+      <p id="ab-msg" class="note" style="color:var(--red);min-height:1em;"></p>
+      <button class="btn" onclick="saveCustomBook()">💾 Save Book to Library</button>
+      <button class="btn ghost" onclick="goGenres()">Cancel</button>
+    </div>
+  </section>
+
+  <!-- ===== AI GENERATE ===== -->
+  <section id="screen-ai" class="screen">
+    <div class="card">
+      <h2>🤖 Generate a Book with AI</h2>
+      <p style="color:var(--muted);font-size:.85rem;">Type a book and its author. Claude writes quiz questions about it, adds it to your library, and starts the quiz.</p>
+      <div class="warn">🔒 This uses <b>your own Anthropic API key</b>. It's stored only in this browser on this device and sent only to Anthropic — Readolingo has no key of its own. Anyone using this device could read it, so don't use a shared computer and tap “Clear key” when done. Each generation is a small paid call on your key. Get a key at console.anthropic.com.</div>
+      <label>Your Anthropic API key</label>
+      <input id="ai-key" type="password" placeholder="sk-ant-..." />
+      <div class="btn-row">
+        <button class="btn secondary" onclick="saveApiKey()">Save key</button>
+        <button class="btn ghost" onclick="clearApiKey()">Clear key</button>
+      </div>
+      <p id="ai-key-status" class="note"></p>
+    </div>
+    <div class="card">
+      <label>Book title</label>
+      <input id="ai-title" placeholder="e.g. Matilda" />
+      <label>Author</label>
+      <input id="ai-author" placeholder="e.g. Roald Dahl" />
+      <button class="btn gold" id="ai-go" onclick="aiGenerate()">✨ Generate questions</button>
+      <p id="ai-msg" class="note" style="min-height:1em;"></p>
+      <button class="btn ghost" onclick="goGenres()">Back</button>
+    </div>
+  </section>
+
+  <!-- ===== SKIM ===== -->
+  <section id="screen-skim" class="screen">
+    <div class="card skim">
+      <div class="book-emoji">📖</div>
+      <h2 style="margin-top:16px;">Skimming the book…</h2>
+      <p style="color:var(--muted);" id="skim-sub">Finding the key points</p>
+    </div>
+  </section>
+
+  <!-- ===== QUIZ ===== -->
+  <section id="screen-quiz" class="screen">
+    <div class="card">
+      <div class="q-count" id="q-count">Question 1 of 5</div>
+      <div class="progress-wrap"><div class="progress-bar" id="progress"></div></div>
+      <div class="q-text" id="q-text"></div>
+      <div id="q-options"></div>
+      <button class="btn" id="next-btn" onclick="nextQuestion()" disabled>Check</button>
+    </div>
+  </section>
+
+  <!-- ===== RESULTS ===== -->
+  <section id="screen-results" class="screen">
+    <div class="card">
+      <div class="result-emoji" id="res-emoji">🎉</div>
+      <h2 class="center" id="res-title">Congrats!</h2>
+      <div class="big-score" id="res-score">90%</div>
+      <div id="res-reward"></div>
+      <div class="stat-grid">
+        <div class="stat"><div class="num" id="res-correct">9/10</div><div class="lbl">Correct</div></div>
+        <div class="stat"><div class="num" id="res-time">2m</div><div class="lbl">Time spent</div></div>
+      </div>
+      <div id="res-strengths"></div>
+      <div id="res-actions"></div>
+    </div>
+  </section>
+
+  <!-- ===== SHOP ===== -->
+  <section id="screen-shop" class="screen">
+    <div class="wallet">
+      <span class="coin">⭐ <span class="w-stars2">0</span></span>
+      <span class="coin">🪙 <span class="w-coins2">0</span></span>
+      <span class="coin">💎 <span class="w-diamonds2">0</span></span>
+    </div>
+    <div class="card">
+      <h2>🛍️ Chest Shop</h2>
+      <p style="color:var(--muted);font-size:.85rem;">Spend ⭐ stars. Open by tapping 6 times — each tap may upgrade the rarity!</p>
+      <div id="chest-list"></div>
+      <button class="btn ghost" onclick="goHome()">Back</button>
+    </div>
+  </section>
+
+  <!-- ===== CHEST OPENING ===== -->
+  <section id="screen-chest" class="screen">
+    <div class="card open-area">
+      <h2 id="chest-name">Wooden Chest</h2>
+      <div class="open-chest" id="chest-emoji" onclick="chestClick()">🎁</div>
+      <div class="tier-now" id="chest-tier">Rare</div>
+      <div class="clicks-left" id="chest-clicks">Tap 6 more times!</div>
+      <div id="chest-reveal"></div>
+    </div>
+  </section>
+
+  <!-- ===== COLLECTION ===== -->
+  <section id="screen-collection" class="screen">
+    <div class="card">
+      <h2>🎒 Your Collection</h2>
+      <h3>Characters</h3>
+      <div class="skin-grid" id="coll-characters"></div>
+      <h3 style="margin-top:14px;">Accessories <small style="color:var(--muted);font-weight:400;">(tap to equip, up to 3)</small></h3>
+      <div class="skin-grid" id="coll-accessories"></div>
+      <button class="btn ghost" onclick="goHome()">Back</button>
+    </div>
+  </section>
+
+  <!-- ===== TRAINER UPGRADE ===== -->
+  <section id="screen-upgrade" class="screen">
+    <div class="card center">
+      <h2>⬆️ Upgrade Your Trainer</h2>
+      <div class="trainer" id="upgrade-trainer" style="border-color:var(--green);"></div>
+      <p id="upgrade-cost" style="margin-top:12px;font-weight:700;"></p>
+      <button class="btn gold" id="upgrade-btn" onclick="doUpgrade()">Upgrade!</button>
+      <button class="btn ghost" onclick="goHome()">Back</button>
+    </div>
+  </section>
+
+  <!-- ===== REPORT ===== -->
+  <section id="screen-report" class="screen">
+    <div class="card">
+      <h2>📨 Send Today's Report</h2>
+      <p style="color:var(--muted);font-size:.9rem;">A summary of today's reading for your family.</p>
+      <label>Family email (recipient)</label>
+      <input id="in-family" placeholder="e.g. parent@email.com" />
+      <label>Reading goals</label>
+      <input id="in-goals" placeholder="e.g. Read 3 books this month" />
+      <div id="report-preview"></div>
+      <div class="warn">🔒 <b>Safe sending:</b> Readolingo never stores your password or logs into your account. The send button opens <b>your own email app / Gmail</b> with the report already written in — you just review it and press Send. No credentials are saved by the app.</div>
+      <button class="btn secondary" onclick="sendReport()">👁️ Preview Report</button>
+      <button class="btn" onclick="emailReport()">📧 Open in Email to Send</button>
+      <button class="btn ghost" onclick="goHome()">Back to Home</button>
+    </div>
+  </section>
+
+  <!-- ===== STREAK CALENDAR ===== -->
+  <section id="screen-calendar" class="screen">
+    <div class="card">
+      <h2>📅 Streak Calendar</h2>
+      <div id="cal-today" class="center" style="font-weight:700;font-size:.9rem;"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin:12px 0;">
+        <button class="btn ghost" style="width:auto;margin:0;padding:8px 16px;" onclick="calMonth(-1)">‹</button>
+        <span id="cal-label" style="font-weight:800;"></span>
+        <button class="btn ghost" style="width:auto;margin:0;padding:8px 16px;" onclick="calMonth(1)">›</button>
+      </div>
+      <div id="cal-grid"></div>
+      <div id="cal-fire" class="center note" style="margin-top:12px;line-height:1.7;"></div>
+      <button class="btn ghost" onclick="goHome()">Back</button>
+    </div>
+  </section>
+</div>
+
+<script>
+/* ============================================================
+   READOLINGO — game build
+   Single file. Persistent state in localStorage.
+   Questions: per-book pools + shared reading-skills bank,
+   reshuffled every attempt so the test changes each time.
+   ============================================================ */
+
+// ---------- Book library by genre ----------
+// Each book: title, author, genre, and ~12 BOOK-SPECIFIC questions.
+// Quizzes draw ONLY from a book's own questions (no generic padding).
+const BOOKS = [
+  // FANTASY
+  book("Harry Potter and the Sorcerer's Stone","J.K. Rowling","Fantasy",[
+    ["What school does Harry attend?",["Hogwarts","Camp Half-Blood","Narnia Academy","Xavier's"],0,"Setting","E"],
+    ["What sport is played on broomsticks?",["Quidditch","Soccer","Cricket","Chess"],0,"Plot","E"],
+    ["Who are Harry's two best friends?",["Ron and Hermione","Draco and Crabbe","Fred and George","Neville and Dean"],0,"Characters","E"],
+    ["Where does Harry live before Hogwarts?",["In a cupboard under the stairs","In a castle","On a farm","In a forest"],0,"Setting","E"],
+    ["Who brings Harry his letter and takes him shopping?",["Hagrid","Snape","Dumbledore","Dudley"],0,"Characters","E"],
+    ["Which house is Harry sorted into?",["Gryffindor","Slytherin","Hufflepuff","Ravenclaw"],0,"Plot","E"],
+    ["What is Harry's pet owl named?",["Hedwig","Errol","Scabbers","Fawkes"],0,"Characters","E"],
+    ["What is hidden and guarded at the school?",["The Sorcerer's Stone","A dragon egg","A time machine","Gold coins"],0,"Plot","M"],
+    ["Who is the villain seeking the stone?",["Voldemort","Snape","Dumbledore","Hagrid"],0,"Characters","M"],
+    ["What Quidditch position does Harry play?",["Seeker","Keeper","Beater","Chaser"],0,"Plot","M"],
+    ["What is the name of the giant three-headed dog?",["Fluffy","Fang","Norbert","Aragog"],0,"Characters","M"],
+    ["How do students reach the school train?",["Platform nine and three-quarters","A flying car","A boat","A portal"],0,"Setting","M"],
+    ["Who is the half-giant gamekeeper?",["Hagrid","Filch","Snape","Quirrell"],0,"Characters","M"],
+    ["What baby dragon does Hagrid raise?",["Norbert","Fluffy","Fawkes","Aragog"],0,"Plot","M"],
+    ["What does the Mirror of Erised show?",["Your deepest desire","The future","A map","Your fears"],0,"Theme","H"],
+    ["Who is secretly helping Voldemort at the school?",["Professor Quirrell","Snape","Hagrid","McGonagall"],0,"Plot","H"],
+    ["What protects Harry from Quirrell's deadly touch?",["His mother's love","A spell","His wand","Luck"],0,"Theme","H"],
+    ["How can one safely get the Stone from the mirror?",["Want it but not use it","Smash the mirror","Say a spell","Steal it"],0,"Plot","H"],
+    ["What plant is escaped by relaxing, not struggling?",["Devil's Snare","A Mandrake","The Whomping Willow","Gillyweed"],0,"Plot","H"],
+    ["What does the Sorcerer's Stone create?",["The Elixir of Life and gold","Spells","Portkeys","Patronuses"],0,"Theme","H"],
+  ]),
+  book("The Lion, the Witch and the Wardrobe","C.S. Lewis","Fantasy",[
+    ["How do the children enter Narnia?",["Through a wardrobe","A door","A boat","A tunnel"],0,"Plot","E"],
+    ["Who is the great lion?",["Aslan","Tumnus","Peter","Edmund"],0,"Characters","E"],
+    ["What season grips Narnia under the Witch?",["Always winter","Always summer","Always spring","Always fall"],0,"Setting","E"],
+    ["Who is the first child to enter Narnia?",["Lucy","Peter","Susan","Edmund"],0,"Characters","E"],
+    ["What kind of creature is Mr. Tumnus?",["A faun","A dwarf","A giant","A talking horse"],0,"Characters","E"],
+    ["How many Pevensie children are there?",["Four","Two","Three","Five"],0,"Setting","E"],
+    ["What is the Witch's title?",["The White Witch","The Snow Queen","The Dark Lady","Queen of Beasts"],0,"Characters","E"],
+    ["What treat tempts Edmund?",["Turkish Delight","Cake","Apples","Bread"],0,"Plot","M"],
+    ["Which child betrays the others to the Witch?",["Edmund","Peter","Lucy","Susan"],0,"Characters","M"],
+    ["What do the children become at the end?",["Kings and queens","Soldiers","Farmers","Witches"],0,"Theme","M"],
+    ["Why are the children staying at the country house?",["To escape the war","On vacation","For school","To visit family"],0,"Setting","M"],
+    ["Who helps the children on their journey?",["The Beavers","The dwarves","The wolves","The trees"],0,"Characters","M"],
+    ["Who gives the children gifts and tools?",["Father Christmas","Aslan","Tumnus","The Witch"],0,"Plot","M"],
+    ["On what does Aslan sacrifice himself?",["The Stone Table","A tree","A river","A throne"],0,"Plot","M"],
+    ["What happens to Aslan after his death?",["He comes back to life","He vanishes forever","He turns to stone","He sleeps"],0,"Plot","H"],
+    ["What ancient magic brings Aslan back to life?",["The Deeper Magic","A potion","A spell","The Witch's wand"],0,"Plot","H"],
+    ["What is a main theme of the story?",["Good versus evil and sacrifice","Money","Sports","Travel"],0,"Theme","H"],
+    ["What does Edmund learn by the end?",["Forgiveness and loyalty","How to fight","How to lie","How to rule alone"],0,"Theme","H"],
+    ["How is the White Witch finally defeated?",["Aslan defeats her in battle","She melts","She runs away","She is frozen"],0,"Plot","H"],
+    ["What does the prophecy say will happen?",["Four humans will rule and end her reign","The Witch wins","Narnia freezes forever","Aslan leaves"],0,"Theme","H"],
+  ]),
+  book("The Hobbit","J.R.R. Tolkien","Fantasy",[
+    ["Who is the main hobbit?",["Bilbo Baggins","Frodo","Sam","Gollum"],0,"Characters"],
+    ["What does Bilbo find in the cave?",["A magic ring","A sword","Gold","A map"],0,"Plot"],
+    ["Who leads the company of dwarves?",["Thorin","Gandalf","Smaug","Beorn"],0,"Characters"],
+    ["What is Smaug?",["A dragon","A wizard","A giant","A troll"],0,"Characters"],
+    ["What is the dwarves' goal?",["Reclaim their treasure","Find a king","Start a war","Build a city"],0,"Plot"],
+    ["Which wizard sends Bilbo on the adventure?",["Gandalf","Saruman","Radagast","Elrond"],0,"Characters"],
+    ["Who owned the ring before Bilbo?",["Gollum","Smaug","Thorin","Bard"],0,"Plot"],
+    ["What does the ring do when Bilbo wears it?",["Makes him invisible","Makes him fly","Makes him strong","Reads minds"],0,"Plot"],
+    ["What game does Bilbo play with Gollum?",["A riddle contest","Cards","Chess","Tag"],0,"Plot"],
+    ["What special jewel does Thorin desire most?",["The Arkenstone","The ruby slippers","The Sorcerer's Stone","A diamond crown"],0,"Plot"],
+    ["What job do the dwarves hire Bilbo for?",["A burglar","A cook","A guard","A guide"],0,"Theme"],
+    ["Under which mountain is the dwarves' treasure?",["The Lonely Mountain","Misty Mountain","Mount Doom","Weathertop"],0,"Setting"],
+  ]),
+  // ADVENTURE
+  book("Treasure Island","Robert Louis Stevenson","Adventure",[
+    ["What does the map lead to?",["Buried treasure","A castle","A school","A cave of bears"],0,"Plot"],
+    ["Who is the sneaky one-legged cook?",["Long John Silver","Jim Hawkins","Captain Smollett","Billy Bones"],0,"Characters"],
+    ["Who is the young hero?",["Jim Hawkins","Tom Sawyer","Huck Finn","Peter"],0,"Characters"],
+    ["What do the sailors search for?",["Pirate gold","A lost dog","A new ship","A king"],0,"Theme"],
+    ["Where does much of the story happen?",["On a ship and an island","In a city","At a school","In a forest"],0,"Setting"],
+    ["Where does Jim find the treasure map?",["In Billy Bones's sea chest","In a library","Buried in sand","In a bottle"],0,"Plot"],
+    ["What is the name of the ship?",["The Hispaniola","The Black Pearl","The Pequod","The Dawn Treader"],0,"Setting"],
+    ["What is the name of Silver's parrot?",["Captain Flint","Polly","Hedwig","Iago"],0,"Characters"],
+    ["Who is the marooned man Jim meets on the island?",["Ben Gunn","Israel Hands","Captain Smollett","Dr. Livesey"],0,"Characters"],
+    ["Where does Jim overhear the mutiny plot?",["Hiding in an apple barrel","Behind a door","Up in the rigging","In the galley"],0,"Plot"],
+    ["What does a 'black spot' mean to pirates?",["A warning or death sentence","A treasure sign","A map","A reward"],0,"Vocabulary"],
+    ["What kind of men does Silver secretly lead?",["Mutineers","Sailors loyal to the captain","Soldiers","Fishermen"],0,"Plot"],
+  ]),
+  book("Hatchet","Gary Paulsen","Adventure",[
+    ["How does Brian end up in the wilderness?",["A plane crash","A shipwreck","He runs away","A car accident"],0,"Plot"],
+    ["What tool does Brian have?",["A hatchet","A rifle","A phone","A tent"],0,"Plot"],
+    ["What must Brian do to survive?",["Find food and shelter","Call for pizza","Build a car","Find a school"],0,"Theme"],
+    ["What animal charges and injures Brian?",["A moose","A lion","A shark","A wolf"],0,"Plot"],
+    ["What does Brian learn?",["Patience and self-reliance","How to fly","How to swim fast","How to cook fancy meals"],0,"Theme"],
+    ["Why was Brian on the small plane?",["To visit his father","A school trip","A vacation","To move away"],0,"Setting"],
+    ["What happens to the pilot?",["He has a heart attack and dies","He parachutes out","He lands safely","He falls asleep"],0,"Plot"],
+    ["What secret troubles Brian about his family?",["His parents' divorce","A lost pet","A move","A money problem"],0,"Theme"],
+    ["How does Brian finally make fire?",["Sparks from the hatchet on stone","Matches","A lighter","Rubbing two sticks"],0,"Plot"],
+    ["What food makes Brian sick early on?",["Gut cherries (berries)","Fish","Meat","Mushrooms"],0,"Plot"],
+    ["What storm destroys his camp?",["A tornado","A blizzard","A hurricane","A flood"],0,"Setting"],
+    ["What does Brian recover from the sunken plane?",["A survival pack","Only food","A boat","Nothing"],0,"Plot"],
+  ]),
+  book("The Adventures of Tom Sawyer","Mark Twain","Adventure",[
+    ["What chore does Tom trick others into doing?",["Whitewashing a fence","Washing dishes","Mowing a lawn","Painting a boat"],0,"Plot"],
+    ["Who is Tom's best friend?",["Huckleberry Finn","Jim Hawkins","Becky","Aunt Polly"],0,"Characters"],
+    ["Who is the villain Tom witnesses?",["Injun Joe","Long John Silver","Voldemort","The Witch"],0,"Characters"],
+    ["Where do Tom and Becky get lost?",["A cave","A forest","A city","A ship"],0,"Setting"],
+    ["What does Tom find at the end?",["Treasure","A pet","A map to school","A new family"],0,"Plot"],
+    ["Who raises Tom?",["Aunt Polly","His mother","Becky's father","The judge"],0,"Characters"],
+    ["Who is the girl Tom likes?",["Becky Thatcher","Mary","Aunt Polly","Amy"],0,"Characters"],
+    ["Where do the boys run off to play pirates?",["Jackson's Island","Treasure Island","Neverland","A cave"],0,"Setting"],
+    ["What do the townspeople think happened to the boys?",["They drowned","They moved away","They were kidnapped","They ran to the city"],0,"Plot"],
+    ["What crime do Tom and Huck witness in the graveyard?",["A murder","A robbery","A kidnapping","A fight"],0,"Plot"],
+    ["Who is wrongly blamed for the murder?",["Muff Potter","Huck","Tom","Aunt Polly"],0,"Plot"],
+    ["Where is Injun Joe found at the end?",["Trapped dead in the cave","In jail","On a ship","In the woods"],0,"Plot"],
+  ]),
+  // ANIMALS
+  book("Charlotte's Web","E. B. White","Animals",[
+    ["What kind of animal is Wilbur?",["A pig","A horse","A cow","A dog"],0,"Characters","E"],
+    ["Who is Charlotte?",["A spider","A girl","A goose","A rat"],0,"Characters","E"],
+    ["What is the greedy rat's name?",["Templeton","Avery","Lurvy","Fern"],0,"Characters","E"],
+    ["Who saves Wilbur when he is a tiny runt?",["Fern","Mr. Zuckerman","Lurvy","Avery"],0,"Plot","E"],
+    ["Where does Wilbur live for most of the story?",["In the barn","In a house","In a field","In a forest"],0,"Setting","E"],
+    ["What does Charlotte write in her web?",["Words about Wilbur","Her name","Numbers","Nothing"],0,"Plot","E"],
+    ["What is the first word Charlotte writes?",["Some Pig","Terrific","Radiant","Humble"],0,"Plot","E"],
+    ["Why does Charlotte help Wilbur?",["To save his life","For money","By accident","To win a prize"],0,"Theme","M"],
+    ["What event does Wilbur go to hoping for a prize?",["The county fair","A circus","A parade","A wedding"],0,"Plot","M"],
+    ["Who owns the farm where Wilbur lives?",["Mr. Zuckerman","Mr. Arable","Lurvy","Dr. Dorian"],0,"Characters","M"],
+    ["What does Charlotte leave behind at the end?",["An egg sac","A web message","A letter","Nothing"],0,"Plot","M"],
+    ["What is Fern's brother's name?",["Avery","Henry","Homer","Lurvy"],0,"Characters","M"],
+    ["Why was Wilbur going to be killed at first?",["He was the runt","He was sick","He bit someone","He escaped"],0,"Plot","M"],
+    ["What other words does Charlotte weave to save Wilbur?",["Terrific, Radiant, Humble","Big, Fast, Strong","Good, Nice, Kind","Pig, Farm, Web"],0,"Plot","M"],
+    ["What sadly happens to Charlotte?",["She dies","She runs away","She gets lost","She is sold"],0,"Theme","H"],
+    ["What does the web word 'humble' say about Wilbur?",["He is modest, not proud","He is huge","He is fast","He is mean"],0,"Vocabulary","H"],
+    ["What is the main theme of the story?",["Friendship and loyalty","Greed","War","Adventure"],0,"Theme","H"],
+    ["How does the selfish Templeton still help?",["He fetches words and the egg sac","He guards Wilbur","He feeds Wilbur","He does nothing"],0,"Plot","H"],
+    ["How many of Charlotte's babies stay with Wilbur?",["Three","Ten","One","None"],0,"Plot","H"],
+    ["What does Charlotte's friendship teach Wilbur?",["To value friends and life","To eat more","To run fast","To be proud"],0,"Theme","H"],
+  ]),
+  book("Because of Winn-Dixie","Kate DiCamillo","Animals",[
+    ["Where does Opal find the dog?",["A grocery store","A park","A school","A river"],0,"Plot"],
+    ["What does Opal name the dog?",["Winn-Dixie","Rex","Buddy","Max"],0,"Plot"],
+    ["What is Opal looking for in her life?",["Friendship and her mom","A new house","A bicycle","Treasure"],0,"Theme"],
+    ["Who is Opal's father?",["The preacher","A sailor","A teacher","A farmer"],0,"Characters"],
+    ["What does the dog help Opal do?",["Make friends","Win a race","Find gold","Fly a plane"],0,"Theme"],
+    ["What is Opal's full first name?",["India Opal","Mary Opal","Anna Opal","Opal June"],0,"Characters"],
+    ["What candy tastes sweet and a little sad?",["A Littmus Lozenge","A lollipop","Gum","A chocolate bar"],0,"Plot"],
+    ["Who is the librarian Opal befriends?",["Miss Franny Block","Gloria Dump","Sweetie Pie","Amanda"],0,"Characters"],
+    ["Who do other kids wrongly call a witch?",["Gloria Dump","Miss Franny","Otis","Sweetie Pie"],0,"Characters"],
+    ["What is Winn-Dixie afraid of?",["Thunderstorms","Cats","The dark","Water"],0,"Plot"],
+    ["How many things does Opal ask to know about her mother?",["Ten","Three","Five","Twenty"],0,"Plot"],
+    ["Where does the story take place?",["A small town in Florida","New York City","Texas","California"],0,"Setting"],
+  ]),
+  book("The Tale of Despereaux","Kate DiCamillo","Animals",[
+    ["What kind of animal is Despereaux?",["A mouse","A rat","A cat","A dog"],0,"Characters"],
+    ["Who does Despereaux love?",["Princess Pea","Queen","A rat","A cook"],0,"Characters"],
+    ["What does Despereaux love to do?",["Read books","Eat cheese","Fight rats","Sleep"],0,"Theme"],
+    ["Who is the villainous rat?",["Roscuro","Templeton","Smaug","Joe"],0,"Characters"],
+    ["What makes Despereaux brave?",["His love and courage","His size","His speed","His teeth"],0,"Theme"],
+    ["Where is Despereaux banished to?",["The dungeon","The forest","A cage","The attic"],0,"Setting"],
+    ["What food becomes forbidden in the kingdom?",["Soup","Bread","Cheese","Cake"],0,"Plot"],
+    ["What happened to the Queen?",["She died when she saw Roscuro","She moved away","She fell asleep","She vanished"],0,"Plot"],
+    ["Who is the servant girl who dreams of being a princess?",["Miggery Sow (Mig)","Pea","Gregory","Antoinette"],0,"Characters"],
+    ["What does Roscuro the rat love that he shouldn't?",["Light","Cheese","Music","The dark"],0,"Plot"],
+    ["What does Despereaux's own family do to him?",["Send him to the dungeon","Hide him","Feed him","Crown him"],0,"Theme"],
+    ["What does 'perfidy' mean in the story?",["Betrayal","Bravery","Kindness","Hunger"],0,"Vocabulary"],
+  ]),
+  // CLASSICS
+  book("Alice's Adventures in Wonderland","Lewis Carroll","Classics",[
+    ["How does Alice fall into Wonderland?",["Down a rabbit hole","Through a mirror","On a boat","In a dream tower"],0,"Plot"],
+    ["Who is always late?",["The White Rabbit","The Mad Hatter","The Queen","The Cat"],0,"Characters"],
+    ["Who shouts 'Off with their heads'?",["The Queen of Hearts","Alice","The Hatter","The Caterpillar"],0,"Characters"],
+    ["What grinning animal appears and vanishes?",["The Cheshire Cat","A dog","A fox","An owl"],0,"Characters"],
+    ["What happens when Alice eats or drinks things?",["She changes size","She flies","She sleeps","She turns invisible"],0,"Plot"],
+    ["What is written on the bottle Alice drinks?",["DRINK ME","EAT ME","OPEN ME","STOP"],0,"Plot"],
+    ["Who hosts the mad tea party?",["The Mad Hatter","The Queen","The Rabbit","The Cat"],0,"Characters"],
+    ["What does the Caterpillar sit on?",["A mushroom","A flower","A leaf","A teacup"],0,"Setting"],
+    ["What odd game does the Queen play?",["Croquet with flamingos","Chess","Cards only","Tag"],0,"Plot"],
+    ["Who is put on trial near the end?",["The Knave of Hearts","Alice","The Hatter","The Rabbit"],0,"Plot"],
+    ["What does the Duchess's baby turn into?",["A pig","A cat","A frog","A bird"],0,"Plot"],
+    ["How does the whole adventure turn out?",["It was Alice's dream","It was real","A magic spell","A trick"],0,"Theme"],
+  ]),
+  book("The Wonderful Wizard of Oz","L. Frank Baum","Classics",[
+    ["What carries Dorothy to Oz?",["A tornado","A boat","A train","A balloon"],0,"Plot"],
+    ["What does the Scarecrow want?",["A brain","A heart","Courage","Money"],0,"Characters"],
+    ["What does the Tin Man want?",["A heart","A brain","Wings","Gold"],0,"Characters"],
+    ["What color is the famous city?",["Emerald (green)","Red","Blue","Gold"],0,"Setting"],
+    ["How does Dorothy get home?",["The magic slippers","A plane","A wizard's spell book","A boat"],0,"Plot"],
+    ["What is Dorothy's little dog named?",["Toto","Rex","Sandy","Spot"],0,"Characters"],
+    ["What does the Cowardly Lion want?",["Courage","A crown","Speed","A friend"],0,"Characters"],
+    ["What road do they follow to the city?",["The yellow brick road","The silver path","The rainbow bridge","The forest trail"],0,"Setting"],
+    ["Who turns out to be an ordinary man behind a curtain?",["The Wizard","The Tin Man","Toto","The Witch"],0,"Plot"],
+    ["How does Dorothy defeat the Wicked Witch of the West?",["Throws water on her","With a sword","With a spell","She runs away"],0,"Plot"],
+    ["Where is Dorothy's real home?",["Kansas","Oz","Texas","Nebraska"],0,"Setting"],
+    ["Who helps Dorothy use the slippers at the end?",["Glinda the Good Witch","The Wizard","The Lion","Toto"],0,"Characters"],
+  ]),
+  book("Peter Pan","J.M. Barrie","Classics",[
+    ["Where does Peter Pan live?",["Neverland","Narnia","Oz","Wonderland"],0,"Setting"],
+    ["Who is Peter's fairy friend?",["Tinker Bell","Wendy","Tiger Lily","Nana"],0,"Characters"],
+    ["Who is Peter's enemy?",["Captain Hook","Long John Silver","The Queen","Smaug"],0,"Characters"],
+    ["What can the children do after fairy dust?",["Fly","Swim fast","Turn invisible","Grow tall"],0,"Plot"],
+    ["What does Peter Pan refuse to do?",["Grow up","Eat","Sleep","Read"],0,"Theme"],
+    ["What is the Darling family's dog-nanny named?",["Nana","Toto","Daisy","Spot"],0,"Characters"],
+    ["Which Darling child leads her brothers to Neverland?",["Wendy","Jane","Liza","Mary"],0,"Characters"],
+    ["What is Captain Hook most afraid of?",["The crocodile","Peter","The dark","Storms"],0,"Plot"],
+    ["What ticks inside the crocodile?",["A clock","A bomb","A bell","A heart"],0,"Plot"],
+    ["What are the boys living with Peter called?",["The Lost Boys","The Pirates","The Darlings","The Fairies"],0,"Characters"],
+    ["What does Peter come to the window looking for?",["His shadow","His hat","Wendy","Food"],0,"Plot"],
+    ["Whom does Peter rescue from Captain Hook?",["Tiger Lily","Wendy","Tinker Bell","Nana"],0,"Plot"],
+  ]),
+  // MYSTERY
+  book("Holes","Louis Sachar","Mystery",[
+    ["Where is Stanley sent?",["Camp Green Lake","A boarding school","Jail in a city","A farm"],0,"Setting","E"],
+    ["What do the boys dig every day?",["Holes","Tunnels","Wells","Gardens"],0,"Plot","E"],
+    ["Who is Stanley's friend at camp?",["Zero","Hook","Templeton","Jim"],0,"Characters","E"],
+    ["What is Stanley's camp nickname?",["Caveman","Zero","Armpit","Zigzag"],0,"Characters","E"],
+    ["Who runs the camp and wants the treasure?",["The Warden","Mr. Sir","Mom","The sheriff"],0,"Characters","E"],
+    ["What dangerous creatures live in the dry lake?",["Yellow-spotted lizards","Snakes only","Scorpions only","Spiders"],0,"Setting","E"],
+    ["What are they secretly searching for?",["Buried treasure","Water","A lost dog","A map to school"],0,"Plot","E"],
+    ["What curse follows Stanley's family?",["Bad luck","Riches","A spell of sleep","A talking pig"],0,"Theme","M"],
+    ["Whose buried loot are they really digging for?",["Kissin' Kate Barlow's","Stanley's dad's","The Warden's mom's","A pirate's"],0,"Plot","M"],
+    ["What do Stanley and Zero eat to survive on the mountain?",["Onions","Berries","Fish","Bread"],0,"Plot","M"],
+    ["What does the camp claim digging holes does?",["Builds character","Finds water","Trains soldiers","Plants trees"],0,"Theme","M"],
+    ["Who are the two cruel adults at the camp?",["Mr. Sir and Mr. Pendanski","The Warden and Zero","Stanley's parents","Two pirates"],0,"Characters","M"],
+    ["What did Zero do that first got Stanley in trouble?",["Took the sneakers that fell on Stanley","Lied to police","Ran away","Dug a hole"],0,"Plot","M"],
+    ["Where do Stanley and Zero flee to survive?",["Big Thumb mountain","A town","A river","The highway"],0,"Setting","M"],
+    ["Whose broken promise supposedly caused the curse?",["Stanley's great-great-grandfather's","His mother's","The Warden's","Zero's"],0,"Plot","H"],
+    ["How are Stanley's and Zero's families secretly linked?",["Their ancestors' stories connect","They are cousins","They are neighbors","They are not linked"],0,"Plot","H"],
+    ["How is the family curse finally broken?",["Stanley carries Zero up the mountain","He digs the deepest hole","He pays money","The Warden frees them"],0,"Theme","H"],
+    ["What is a main theme of the book?",["Fate, friendship, and justice","Money","Sports","Romance"],0,"Theme","H"],
+    ["What is finally found in the suitcase?",["Treasure belonging to Stanley's family","Water","Lizards","Nothing"],0,"Plot","H"],
+    ["How does the story tell two times at once?",["Past and present stories intertwine","Backwards","In a dream","With letters"],0,"Plot","H"],
+  ]),
+  book("The Westing Game","Ellen Raskin","Mystery",[
+    ["What must the heirs solve?",["Who killed Sam Westing","A math test","A treasure map","A riddle for school"],0,"Plot"],
+    ["What do the players receive as clues?",["Word puzzles","Maps","Keys","Photos"],0,"Plot"],
+    ["How many heirs are in the game?",["Sixteen","Two","Five","Twenty"],0,"Setting"],
+    ["What is the prize?",["A fortune","A house","A car","A trophy"],0,"Theme"],
+    ["What kind of story is this?",["A whodunit mystery","A romance","A fantasy","A war story"],0,"Theme"],
+    ["In what building do the heirs live?",["Sunset Towers","Westing Mansion","Camp Green Lake","Hogwarts"],0,"Setting"],
+    ["Which clever young girl helps crack the case?",["Turtle Wexler","Angela","Mrs. Hoo","Sydelle"],0,"Characters"],
+    ["How are the players grouped to play?",["In pairs","Alone","In teams of four","All together"],0,"Plot"],
+    ["The scattered clue words come from which song?",["America the Beautiful","Happy Birthday","The alphabet song","A nursery rhyme"],0,"Plot"],
+    ["Is Sam Westing really dead?",["No, he is in disguise","Yes, truly","He never existed","He is asleep"],0,"Plot"],
+    ["What is one disguise Westing uses?",["Sandy McSouthers","A pirate","A teacher","A doctor"],0,"Plot"],
+    ["Who ultimately wins the game?",["Turtle","Angela","Mr. Hoo","Crow"],0,"Characters"],
+  ]),
+  book("Encyclopedia Brown, Boy Detective","Donald J. Sobol","Mystery",[
+    ["What is Encyclopedia Brown known for?",["Solving cases with facts","Playing sports","Singing","Cooking"],0,"Characters"],
+    ["Who is his father?",["The police chief","A teacher","A sailor","A farmer"],0,"Characters"],
+    ["How does he solve cases?",["Logic and clues","Magic","Guessing","Asking adults"],0,"Theme"],
+    ["Where does he run his detective agency?",["His garage","A school","A library","A ship"],0,"Setting"],
+    ["What does each chapter ask the reader to do?",["Solve the mystery","Draw a picture","Write a poem","Count pages"],0,"Plot"],
+    ["What is Encyclopedia's real first name?",["Leroy","Sam","Bugs","Charlie"],0,"Characters"],
+    ["Who is his partner and bodyguard?",["Sally Kimball","Bugs Meany","Chief Brown","Lucy"],0,"Characters"],
+    ["How much does he charge to take a case?",["25 cents a day","A dollar","Nothing","Ten dollars"],0,"Plot"],
+    ["Why is he nicknamed 'Encyclopedia'?",["He knows tons of facts","He is tall","He reads slowly","He sells books"],0,"Vocabulary"],
+    ["Who is the neighborhood bully he outsmarts?",["Bugs Meany","Sally","Leroy","Chief Brown"],0,"Characters"],
+    ["Where are the case solutions found?",["At the back of the book","On the cover","Nowhere","In a separate book"],0,"Plot"],
+    ["What town does Encyclopedia live in?",["Idaville","Riverdale","Greenlake","Maycomb"],0,"Setting"],
+  ]),
+  // SCIENCE FICTION
+  book("A Wrinkle in Time","Madeleine L'Engle","Science Fiction",[
+    ["What is a 'tesseract' used for?",["Traveling through space and time","Cooking","Reading","Sleeping"],0,"Plot"],
+    ["Who is the main girl?",["Meg Murry","Alice","Dorothy","Wendy"],0,"Characters"],
+    ["Who are they searching for?",["Meg's father","A lost dog","Treasure","A wizard"],0,"Plot"],
+    ["What is the evil force called?",["IT","Voldemort","The Witch","Hook"],0,"Characters"],
+    ["What finally saves Charles Wallace?",["Meg's love","A sword","A spell book","A rocket"],0,"Theme"],
+    ["Who is Meg's brilliant little brother?",["Charles Wallace","Calvin","Sandy","Dennys"],0,"Characters"],
+    ["What are the three mysterious guides called?",["Mrs. Whatsit, Who, and Which","The Fates","The Witches","The Wise Ones"],0,"Characters"],
+    ["What dark planet is controlled by IT?",["Camazotz","Uriel","Ixchel","Mars"],0,"Setting"],
+    ["Which classmate joins Meg on the journey?",["Calvin O'Keefe","Sandy","Dennys","A teacher"],0,"Characters"],
+    ["What shadow threatens the universe?",["The Black Thing","A storm","A comet","A war"],0,"Theme"],
+    ["What was Meg's father doing when he vanished?",["Secret tesseract science","Fishing","Teaching","Traveling for fun"],0,"Plot"],
+    ["What is eerie about people on Camazotz?",["They all act exactly alike","They are invisible","They never speak","They are giants"],0,"Setting"],
+  ]),
+  book("The Wild Robot","Peter Brown","Science Fiction",[
+    ["Who is the main character?",["Roz the robot","A dragon","A pirate","A wizard"],0,"Characters"],
+    ["Where does Roz wake up?",["On a wild island","In a city","On a ship","At a school"],0,"Setting"],
+    ["What does Roz adopt?",["A gosling","A puppy","A kitten","A pig"],0,"Plot"],
+    ["What must Roz learn to do?",["Survive in nature","Fly a plane","Cook dinner","Read books"],0,"Theme"],
+    ["What does the story teach about?",["Kindness and belonging","War","Money","Speed"],0,"Theme"],
+    ["What is the gosling's name?",["Brightbill","Chitchat","Fink","Loudwing"],0,"Characters"],
+    ["How does Roz first come to the island?",["Washed ashore from a shipwreck","Flew there","Was born there","Drove there"],0,"Plot"],
+    ["How does Roz learn to talk to the animals?",["By learning their languages","By magic","With a translator","She can't"],0,"Plot"],
+    ["Who comes to take Roz away at the end?",["Robots called RECOs","Pirates","Hunters","Farmers"],0,"Plot"],
+    ["Why do the animals fear Roz at first?",["She seems like a monster","She is loud","She is huge","She eats them"],0,"Theme"],
+    ["What does Brightbill do when winter comes?",["Migrates south with geese","Hibernates","Stays with Roz","Flies to the city"],0,"Plot"],
+    ["How does Roz help the animals in winter?",["Builds a warm shelter","Brings food from town","Lights a fire","Nothing"],0,"Theme"],
+  ]),
+  book("Ender's Game","Orson Scott Card","Science Fiction",[
+    ["Where is Ender trained?",["Battle School in space","A castle","A farm","A ship"],0,"Setting"],
+    ["What is Ender training to fight?",["An alien race","Pirates","Dragons","Witches"],0,"Plot"],
+    ["What are the war games played in?",["A zero-gravity battle room","A field","A pool","A maze"],0,"Plot"],
+    ["What makes Ender special?",["His brilliant strategy","His size","His age","His wealth"],0,"Characters"],
+    ["What big twist does Ender discover?",["The 'game' was real war","He was dreaming","It was a movie","He failed"],0,"Theme"],
+    ["What is Ender's real first name?",["Andrew","Peter","John","Bean"],0,"Characters"],
+    ["Why is Ender rare, called a 'Third'?",["He is a third child","He is third in class","He has three siblings","He is from a third planet"],0,"Plot"],
+    ["Who is Ender's cruel older brother?",["Peter","Bean","Bonzo","Graff"],0,"Characters"],
+    ["Who is Ender's kind, beloved sister?",["Valentine","Petra","Alai","Whatsit"],0,"Characters"],
+    ["Who recruits and tests Ender?",["Colonel Graff","Peter","Bonzo","Mazer"],0,"Characters"],
+    ["What does Ender unknowingly destroy?",["The aliens' home world","His own ship","Earth","Nothing"],0,"Plot"],
+    ["What does Ender care for at the very end?",["The last hive queen's egg","A pet dog","His medals","A spaceship"],0,"Theme"],
+  ]),
+  // REALISTIC FICTION
+  book("Wonder","R.J. Palacio","Realistic Fiction",[
+    ["Why is Auggie nervous to start school?",["He has a facial difference","He is new in town","He can't read","He is very tall"],0,"Plot","E"],
+    ["What grade does Auggie enter?",["Fifth grade","First grade","High school","College"],0,"Setting","E"],
+    ["Who is Auggie's first real friend?",["Jack Will","Julian","Summer's dad","The principal"],0,"Characters","E"],
+    ["What is Auggie's dog named?",["Daisy","Bear","Rex","Toto"],0,"Characters","E"],
+    ["What is Auggie's favorite holiday?",["Halloween","Christmas","His birthday","New Year"],0,"Characters","E"],
+    ["Who is the main kid that bullies Auggie?",["Julian","Jack","Reid","Amos"],0,"Characters","E"],
+    ["What helmet did Auggie used to wear all the time?",["An astronaut helmet","A bike helmet","A football helmet","A diving helmet"],0,"Plot","E"],
+    ["What is the book's big lesson?",["Choose kindness","Win at sports","Get rich","Be the smartest"],0,"Theme","M"],
+    ["What award does Auggie receive?",["A medal for courage","A trophy for soccer","Best grades","A spelling bee"],0,"Plot","M"],
+    ["Who is Auggie's older sister?",["Via","Summer","Miranda","Daisy"],0,"Characters","M"],
+    ["What does Mr. Browne teach each month?",["Precepts about kindness","Math tricks","Spelling words","History dates"],0,"Theme","M"],
+    ["What does Jack do that hurts Auggie?",["Says mean things, not knowing Auggie hears","Hits him","Steals from him","Ignores him forever"],0,"Plot","M"],
+    ["Where are Auggie and Jack attacked by older kids?",["On a nature/camping trip","At a mall","On a bus","At a party"],0,"Setting","M"],
+    ["Who is the loyal girl who sits with Auggie?",["Summer","Via","Miranda","Charlotte"],0,"Characters","M"],
+    ["Who tells parts of the story besides Auggie?",["His sister Via and friends","Only his mom","The teacher","No one"],0,"Plot","H"],
+    ["Why does the book use many narrators?",["To show different points of view","To be longer","For pictures","No reason"],0,"Plot","H"],
+    ["What is the main theme of the book?",["Empathy and kindness","Winning","Wealth","Fear"],0,"Theme","H"],
+    ["What does the precept 'choose kind' mean?",["Kindness matters more than being right","Always be right","Be the smartest","Stay quiet"],0,"Theme","H"],
+    ["How does Auggie change the people around him?",["He earns their respect and friendship","He scares them","He pays them","He does not"],0,"Theme","H"],
+    ["Why is Auggie's medal at the end meaningful?",["It honors his courage and impact on others","It is gold","It is for sports","It was a gift"],0,"Plot","H"],
+  ]),
+  book("Bridge to Terabithia","Katherine Paterson","Realistic Fiction",[
+    ["What is Terabithia?",["An imaginary kingdom","A real city","A school","A ship"],0,"Setting"],
+    ["Who are the two main friends?",["Jess and Leslie","Tom and Huck","Meg and Charles","Roz and Brightbill"],0,"Characters"],
+    ["How do they reach Terabithia?",["Swinging across a creek","A wardrobe","A tornado","A plane"],0,"Plot"],
+    ["What tragic event happens?",["Leslie dies","They move away","They fight forever","They get lost"],0,"Plot"],
+    ["What does the story explore?",["Friendship and grief","War","Money","Magic spells"],0,"Theme"],
+    ["What is Jess especially good at?",["Drawing and running","Singing","Cooking","Math"],0,"Characters"],
+    ["Who is the new girl that befriends Jess?",["Leslie Burke","May Belle","Janice","Miss Edmunds"],0,"Characters"],
+    ["How does Leslie die?",["She drowns when the rope breaks","In a car crash","From an illness","In a fire"],0,"Plot"],
+    ["What do Jess and Leslie crown themselves in Terabithia?",["King and queen","Knights","Wizards","Pirates"],0,"Plot"],
+    ["What pet does Jess give Leslie for Christmas?",["A puppy","A kitten","A bird","A rabbit"],0,"Plot"],
+    ["Whom does Jess bring to Terabithia at the end?",["His sister May Belle","Leslie","His teacher","No one"],0,"Theme"],
+    ["Where was Jess when Leslie died?",["On a museum trip","At home","In Terabithia","At school"],0,"Plot"],
+  ]),
+  book("Number the Stars","Lois Lowry","Realistic Fiction",[
+    ["Where and when is the story set?",["Denmark during WWII","America today","Ancient Rome","Future space"],0,"Setting"],
+    ["Who is the brave main girl?",["Annemarie","Meg","Alice","Wendy"],0,"Characters"],
+    ["Who are the family trying to protect?",["Their Jewish friends","Pirates","Soldiers","A robot"],0,"Plot"],
+    ["What does Annemarie show?",["Courage under danger","Greed","Laziness","Fear only"],0,"Theme"],
+    ["What is smuggled to safety?",["People to Sweden","Gold","A treasure map","A magic ring"],0,"Plot"],
+    ["Who is Annemarie's Jewish best friend?",["Ellen Rosen","Kirsti","Lise","Her cousin"],0,"Characters"],
+    ["What does Ellen pretend to be in the Johansen home?",["Annemarie's sister","A cousin","A maid","A neighbor"],0,"Plot"],
+    ["What necklace must Ellen hide?",["Her Star of David","A locket","A cross","A pearl"],0,"Plot"],
+    ["Who has occupied Denmark in the story?",["Nazi soldiers","Pirates","The British","Vikings"],0,"Setting"],
+    ["What fools the soldiers' dogs at the boat?",["A drugged handkerchief","Loud music","A fake trail","Food"],0,"Plot"],
+    ["How are people taken to safety in Sweden?",["By fishing boat","By plane","By train","On foot"],0,"Plot"],
+    ["What had happened to Annemarie's sister Lise?",["She died in the Resistance","She moved away","She was captured","She is hiding"],0,"Theme"],
+  ]),
+  // ===== MORE FANTASY =====
+  book("Percy Jackson: The Lightning Thief","Rick Riordan","Fantasy",[
+    ["Who is Percy Jackson's father?",["Poseidon","Zeus","Hades","Apollo"],0,"Characters","E"],
+    ["What summer camp is for demigods?",["Camp Half-Blood","Camp Green Lake","Hogwarts","Camp Olympus"],0,"Setting","E"],
+    ["What is Percy accused of stealing?",["Zeus's lightning bolt","A sword","Gold","A pearl"],0,"Plot","E"],
+    ["Who are Percy's two best friends?",["Annabeth and Grover","Ron and Hermione","Jason and Piper","Leo and Frank"],0,"Characters","E"],
+    ["What is Percy's full first name?",["Perseus","Pearson","Patrick","Peter"],0,"Characters","E"],
+    ["Who is Percy's human mother?",["Sally Jackson","Athena","Annabeth","May"],0,"Characters","E"],
+    ["What learning differences does Percy have?",["Dyslexia and ADHD","None","Just shyness","A broken leg"],0,"Setting","E"],
+    ["What kind of creature is Grover?",["A satyr","A centaur","A cyclops","A god"],0,"Characters","M"],
+    ["Who is Annabeth's godly parent?",["Athena","Aphrodite","Demeter","Hera"],0,"Characters","M"],
+    ["What city hides the entrance to the Underworld?",["Los Angeles","New York","Las Vegas","Chicago"],0,"Setting","M"],
+    ["What is a demigod?",["A child of a god and a human","A small god","A monster","A wizard"],0,"Vocabulary","M"],
+    ["Who is the centaur who trains the campers?",["Chiron","Mr. D","Grover","Luke"],0,"Characters","M"],
+    ["Whose realm do they visit to find the bolt?",["Hades, the Underworld","Zeus, the sky","Apollo, the sun","Ares, war"],0,"Plot","M"],
+    ["What must Percy do besides find the bolt?",["Clear his name before war breaks out","Win a race","Get rich","Go home"],0,"Plot","M"],
+    ["Who turns out to be the real lightning thief?",["Luke","Hades","Ares","Grover"],0,"Plot","H"],
+    ["What is Percy's power as a son of Poseidon?",["Control over water","Flight","Fire","Invisibility"],0,"Theme","H"],
+    ["What weapon does Percy use, disguised as a pen?",["Riptide, a sword","A bow","A shield","A spear"],0,"Plot","H"],
+    ["Which Titan is secretly stirring war among the gods?",["Kronos","Atlas","Prometheus","Helios"],0,"Plot","H"],
+    ["What does Luke want to happen?",["Help Kronos rise and overthrow the gods","Become a teacher","Go home","Win a quest"],0,"Plot","H"],
+    ["What is a main theme of the book?",["Identity, loyalty, and belonging","Money","Sports","Cooking"],0,"Theme","H"],
+  ]),
+  book("Charlie and the Chocolate Factory","Roald Dahl","Fantasy",[
+    ["What does Charlie find that wins a factory tour?",["A golden ticket","A coin","A map","A key"],0,"Plot","E"],
+    ["Who owns the chocolate factory?",["Willy Wonka","Grandpa Joe","Mr. Bucket","Augustus"],0,"Characters","E"],
+    ["What is Charlie's family like?",["Very poor","Very rich","Royal","Wealthy"],0,"Setting","E"],
+    ["How many golden tickets are hidden?",["Five","One","Ten","Three"],0,"Plot","E"],
+    ["Which greedy boy falls into the chocolate river?",["Augustus Gloop","Mike Teavee","Charlie","Grandpa Joe"],0,"Plot","M"],
+    ["What happens to Violet Beauregarde?",["She swells into a blueberry","She shrinks","She floats away","She vanishes"],0,"Plot","M"],
+    ["Who shrinks himself using a TV?",["Mike Teavee","Augustus","Veruca","Charlie"],0,"Plot","M"],
+    ["What does Wonka give Charlie at the end?",["The whole factory","A million dollars","A car","Candy for life only"],0,"Plot","H"],
+    ["Why does Charlie win in the end?",["He is good and honest","He is richest","He cheats","He is loudest"],0,"Theme","H"],
+    ["Who works inside the factory?",["Oompa-Loompas","Robots","Elves","Fairies"],0,"Characters","H"],
+  ]),
+  book("The BFG","Roald Dahl","Fantasy",[
+    ["What does BFG stand for?",["Big Friendly Giant","Brave Fast Giant","Big Funny Goblin","Bold Final Giant"],0,"Characters","E"],
+    ["Who does the BFG befriend?",["Sophie","Matilda","Charlie","Lucy"],0,"Characters","E"],
+    ["What does the BFG collect and deliver?",["Dreams","Coins","Books","Toys"],0,"Plot","E"],
+    ["Where does the BFG take Sophie?",["Giant Country","The moon","A castle","A forest"],0,"Setting","E"],
+    ["What do the other giants like to eat?",["Humans","Vegetables","Candy","Fish"],0,"Plot","M"],
+    ["What fizzy drink makes you toot?",["Frobscottle","Soda pop","Root beer","Lemonade"],0,"Plot","M"],
+    ["Who does Sophie ask to help stop the giants?",["The Queen of England","The army alone","Her parents","A wizard"],0,"Plot","M"],
+    ["What is the BFG's funny mixed-up language called?",["Gobblefunk","Slang","Code","Pig Latin"],0,"Vocabulary","H"],
+    ["How are the bad giants finally captured?",["Dropped into a deep pit","Frozen","Sent to space","Turned to stone"],0,"Plot","H"],
+    ["Why is the BFG different from other giants?",["He is kind and won't eat people","He is bigger","He is faster","He is older"],0,"Theme","H"],
+  ]),
+  book("Coraline","Neil Gaiman","Fantasy",[
+    ["What does Coraline find behind a locked door?",["Another world","A treasure","A garden","A school"],0,"Plot","E"],
+    ["Who has buttons for eyes in the other world?",["The Other Mother","Coraline","Her father","The cat"],0,"Characters","E"],
+    ["What animal talks to Coraline in the other world?",["A cat","A dog","A rat","A bird"],0,"Characters","E"],
+    ["What does the Other Mother want to sew on Coraline?",["Buttons for eyes","A dress","Wings","A hat"],0,"Plot","E"],
+    ["What must Coraline find to win?",["The souls of ghost children and her parents","Gold","A key only","A map"],0,"Plot","M"],
+    ["What is the Other Mother also called?",["The beldam","The witch","The queen","The ghost"],0,"Characters","M"],
+    ["What does Coraline use to find the lost souls?",["A seeing stone","A flashlight","A map","A wand"],0,"Plot","M"],
+    ["Why does Coraline refuse to stay in the other world?",["It is a trap, not real love","It is boring","It is too far","She misses school"],0,"Theme","H"],
+    ["What does the story say about a fake perfect life?",["Real life is better","Perfect is best","Money matters most","Nothing"],0,"Theme","H"],
+    ["What does Coraline trap and get rid of at the end?",["The Other Mother's hand","A rat","The cat","A ghost"],0,"Plot","H"],
+  ]),
+  // ===== MORE ADVENTURE =====
+  book("The Adventures of Huckleberry Finn","Mark Twain","Adventure",[
+    ["Who does Huck travel down the river with?",["Jim","Tom Sawyer","Becky","Aunt Polly"],0,"Characters","E"],
+    ["What river do they travel on?",["The Mississippi","The Nile","The Amazon","The Thames"],0,"Setting","E"],
+    ["What do Huck and Jim travel on?",["A raft","A steamboat","A canoe","A ship"],0,"Setting","E"],
+    ["Who is Jim?",["An enslaved man seeking freedom","A pirate","A teacher","A sailor"],0,"Characters","E"],
+    ["Why does Huck fake his own death?",["To escape his cruel father","For a joke","To win money","To skip school"],0,"Plot","M"],
+    ["What two con men join Huck and Jim?",["The Duke and the King","Tom and Sid","Pirates","Soldiers"],0,"Characters","M"],
+    ["Who turns up near the end to help Jim?",["Tom Sawyer","Becky","Aunt Polly","The Duke"],0,"Plot","M"],
+    ["What big moral choice does Huck make about Jim?",["He decides to help free him","He turns him in","He abandons him","He sells him"],0,"Theme","H"],
+    ["What does the river most represent?",["Freedom","Danger only","Money","Time"],0,"Theme","H"],
+    ["Why is the book seen as important?",["It confronts slavery and racism","It is funny","It is short","It has pictures"],0,"Theme","H"],
+  ]),
+  book("Island of the Blue Dolphins","Scott O'Dell","Adventure",[
+    ["Who is the main character?",["Karana","Annemarie","Opal","Meg"],0,"Characters","E"],
+    ["Where is Karana stranded?",["An island","A desert","A forest","A ship"],0,"Setting","E"],
+    ["Why is Karana left behind?",["She jumps off the ship to stay with her brother","She runs away","She is lost","She is exiled"],0,"Plot","E"],
+    ["What happens to her brother early on?",["He is killed by wild dogs","He sails away","He gets sick","He hides"],0,"Plot","E"],
+    ["What animal does Karana tame and befriend?",["A wild dog she names Rontu","A horse","A cat","A bird"],0,"Characters","M"],
+    ["How does Karana survive for years?",["By hunting, fishing, and building shelter","By farming only","With a phone","With others"],0,"Plot","M"],
+    ["The story is based on a real woman from where?",["An island off California","Hawaii","Alaska","Mexico"],0,"Setting","M"],
+    ["What does Karana do despite her tribe's customs?",["Makes weapons herself","Reads","Sails far","Cooks"],0,"Theme","H"],
+    ["What is a main theme of the book?",["Survival and self-reliance","War","Romance","Money"],0,"Theme","H"],
+    ["How does Karana finally leave the island?",["Rescued by a ship","She swims","She builds a boat","She never leaves"],0,"Plot","H"],
+  ]),
+  book("Robinson Crusoe","Daniel Defoe","Adventure",[
+    ["How does Crusoe end up on the island?",["A shipwreck","A plane crash","He runs away","A war"],0,"Plot","E"],
+    ["How long is Crusoe stranded?",["Many years","One week","One year","A month"],0,"Setting","E"],
+    ["Who becomes Crusoe's companion?",["Friday","Jim","A dog only","Ben Gunn"],0,"Characters","E"],
+    ["What does Crusoe do to survive?",["Builds shelter and grows food","Builds a car","Opens a school","Builds boats to sell"],0,"Plot","E"],
+    ["How does Crusoe meet Friday?",["He rescues him from cannibals","At a market","On a ship","In a city"],0,"Plot","M"],
+    ["What does Crusoe save from the wrecked ship?",["Tools and supplies","Gold only","Nothing","A radio"],0,"Plot","M"],
+    ["What does Crusoe teach Friday?",["English and his religion","To fly","To read maps only","To swim"],0,"Plot","M"],
+    ["What is a major theme of the novel?",["Survival and ingenuity","Love","War","Wealth"],0,"Theme","H"],
+    ["How does Crusoe change after years alone?",["He reflects deeply on life","He does not change","He gives up","He stays angry"],0,"Theme","H"],
+    ["How does Crusoe finally leave the island?",["He helps retake a ship from mutineers","He swims","He builds a plane","He is never rescued"],0,"Plot","H"],
+  ]),
+  // ===== MORE ANIMALS =====
+  book("The Call of the Wild","Jack London","Animals",[
+    ["Who is the main character?",["Buck, a dog","A wolf pack","A boy","A horse"],0,"Characters","E"],
+    ["Where is Buck taken?",["The Yukon for the gold rush","A farm","A city zoo","A jungle"],0,"Setting","E"],
+    ["What is Buck forced to do?",["Pull a sled","Race","Guard a house","Herd sheep"],0,"Plot","E"],
+    ["What is Buck at the start of the story?",["A pampered pet","A wild wolf","A stray","A puppy"],0,"Characters","E"],
+    ["Who is the kind master Buck loves?",["John Thornton","Hal","Spitz","Manuel"],0,"Characters","M"],
+    ["Which dog is Buck's rival?",["Spitz","Thornton","Dave","Curly"],0,"Characters","M"],
+    ["What happens to John Thornton?",["He is killed","He moves away","He sells Buck","He gets rich"],0,"Plot","M"],
+    ["What does Buck answer at the end?",["The call of the wild","A whistle","His old owner","Nothing"],0,"Theme","H"],
+    ["What does Buck slowly become?",["More wild and instinctive","More tame","Lazy","Afraid"],0,"Theme","H"],
+    ["What is a main theme?",["Instinct and survival in nature","Friendship only","Money","School"],0,"Theme","H"],
+  ]),
+  book("Black Beauty","Anna Sewell","Animals",[
+    ["What kind of animal is Black Beauty?",["A horse","A dog","A pony","A donkey"],0,"Characters","E"],
+    ["Who tells the story?",["Black Beauty himself","A boy","A farmer","A dog"],0,"Characters","E"],
+    ["What is special about how the story is told?",["From the horse's point of view","In rhyme","Backwards","By a narrator god"],0,"Plot","E"],
+    ["What color is Black Beauty?",["Black","White","Brown","Gray"],0,"Setting","E"],
+    ["What painful device does the book criticize?",["The bearing (check) rein","Saddles","Horseshoes","All reins"],0,"Plot","M"],
+    ["What happens as Black Beauty changes owners?",["Some are kind, some are cruel","All are kind","All are cruel","He stays with one"],0,"Plot","M"],
+    ["Who is Black Beauty's fiery-tempered horse friend?",["Ginger","Merrylegs","Duchess","Rob Roy"],0,"Characters","M"],
+    ["What is the book's main message?",["Treat animals with kindness","Horses are useless","Work is bad","Be rich"],0,"Theme","H"],
+    ["Why was the book important when published?",["It improved how people treated horses","It was funny","It was short","It had maps"],0,"Theme","H"],
+    ["How does Black Beauty's life end?",["In a peaceful, kind home","Sadly alone","In a race","Unknown"],0,"Plot","H"],
+  ]),
+  book("Where the Red Fern Grows","Wilson Rawls","Animals",[
+    ["What animals does Billy finally get?",["Two hunting dogs","A horse","A cat","Birds"],0,"Plot","E"],
+    ["What are the dogs' names?",["Old Dan and Little Ann","Rex and Spot","Buck and Spitz","Lad and Lass"],0,"Characters","E"],
+    ["What do Billy and his dogs hunt?",["Raccoons","Foxes","Deer","Bears"],0,"Plot","E"],
+    ["How does Billy get the dogs?",["He saves up money working hard","He steals them","He finds them","His dad buys them"],0,"Plot","E"],
+    ["Where does the story take place?",["The Ozark Mountains","A city","The desert","The coast"],0,"Setting","M"],
+    ["What contest do the dogs win?",["A coon-hunting championship","A race","A dog show","A fair"],0,"Plot","M"],
+    ["What animal kills Old Dan?",["A mountain lion","A bear","A wolf","A snake"],0,"Plot","M"],
+    ["What happens to Little Ann after Old Dan dies?",["She dies of grief","She runs away","She is sold","She has puppies"],0,"Plot","H"],
+    ["What grows over the dogs' graves?",["A red fern","Roses","A tree","Grass only"],0,"Theme","H"],
+    ["What does the red fern legend mean?",["Only an angel can plant it","Bad luck","Money","Nothing"],0,"Theme","H"],
+  ]),
+  book("The One and Only Ivan","Katherine Applegate","Animals",[
+    ["What kind of animal is Ivan?",["A gorilla","A dog","An elephant","A monkey"],0,"Characters","E"],
+    ["Where does Ivan live at the start?",["A shopping mall","A jungle","A zoo only","A farm"],0,"Setting","E"],
+    ["Who is the baby elephant Ivan protects?",["Ruby","Stella","Bob","Julia"],0,"Characters","E"],
+    ["What does Ivan like to do?",["Draw and make art","Sing","Dance","Read"],0,"Theme","E"],
+    ["Who is the old elephant that befriends Ivan?",["Stella","Ruby","Bob","Mack"],0,"Characters","M"],
+    ["Who is the little dog friend?",["Bob","Ruby","Stella","Julia"],0,"Characters","M"],
+    ["What does Ivan use his art to do?",["Get Ruby moved to a zoo","Make money","Decorate","Pass time only"],0,"Plot","M"],
+    ["From whose point of view is the story told?",["Ivan the gorilla's","Julia's","Mack's","A narrator's"],0,"Plot","H"],
+    ["What is a main theme?",["Friendship, freedom, and keeping promises","War","Wealth","School"],0,"Theme","H"],
+    ["How does the story end for Ivan and Ruby?",["They move to a real zoo home","They escape to the wild","They stay at the mall","Sadly"],0,"Plot","H"],
+  ]),
+  // ===== MORE CLASSICS =====
+  book("Matilda","Roald Dahl","Classics",[
+    ["What is Matilda especially good at?",["Reading and learning","Sports","Singing","Cooking"],0,"Characters","E"],
+    ["Who is Matilda's kind teacher?",["Miss Honey","Miss Trunchbull","Mrs. Wormwood","Mrs. Phelps"],0,"Characters","E"],
+    ["Who is the cruel headmistress?",["Miss Trunchbull","Miss Honey","Matilda's mom","Mrs. Phelps"],0,"Characters","E"],
+    ["How do Matilda's parents treat her?",["They ignore and belittle her","They adore her","They homeschool her","They spoil her"],0,"Setting","E"],
+    ["What special power does Matilda develop?",["Moving things with her mind","Flying","Invisibility","Super strength"],0,"Plot","M"],
+    ["What is the Chokey?",["A cruel punishment closet","A candy","A game","A classroom"],0,"Plot","M"],
+    ["How does Matilda scare Miss Trunchbull away?",["By moving chalk with her mind","With a prank call","By fighting","By calling police"],0,"Plot","M"],
+    ["Who is Miss Trunchbull cruel to besides students?",["Miss Honey, her niece","Matilda's parents","The mayor","No one"],0,"Plot","H"],
+    ["How does the story end for Matilda?",["She lives happily with Miss Honey","She moves abroad","She stays sad","She gets rich"],0,"Plot","H"],
+    ["What is a main theme?",["Standing up to unfair adults","Money","War","Sports"],0,"Theme","H"],
+  ]),
+  book("The Secret Garden","Frances Hodgson Burnett","Classics",[
+    ["Who is the main girl?",["Mary Lennox","Anne","Matilda","Karana"],0,"Characters","E"],
+    ["What does Mary discover?",["A hidden, locked garden","A treasure","A cave","A school"],0,"Plot","E"],
+    ["Where does Mary go to live?",["Her uncle's manor in England","An island","A city","A farm"],0,"Setting","E"],
+    ["What is Mary like at the start?",["Spoiled and sour","Cheerful","Shy and kind","Sickly"],0,"Characters","E"],
+    ["Who is the sickly boy Mary befriends?",["Colin","Dickon","Ben","Archibald"],0,"Characters","M"],
+    ["Who is the local boy who talks to animals?",["Dickon","Colin","Ben Weatherstaff","Martha"],0,"Characters","M"],
+    ["What bird helps Mary find the garden?",["A robin","An owl","A crow","A sparrow"],0,"Plot","M"],
+    ["What heals Colin and Mary?",["Nature, friendship, and fresh air","Medicine only","Magic spells","Money"],0,"Theme","H"],
+    ["Why was the garden locked?",["Colin's mother died there","It was dangerous","It was haunted","No reason"],0,"Plot","H"],
+    ["What is a main theme?",["Healing and new life through nature","War","Wealth","Adventure"],0,"Theme","H"],
+  ]),
+  book("Anne of Green Gables","L.M. Montgomery","Classics",[
+    ["Who is the main character?",["Anne Shirley","Mary","Matilda","Jo"],0,"Characters","E"],
+    ["Where does Anne come to live?",["Green Gables on Prince Edward Island","An island alone","A city","A castle"],0,"Setting","E"],
+    ["Who adopts Anne?",["Marilla and Matthew Cuthbert","Miss Honey","Her uncle","An orphanage"],0,"Characters","E"],
+    ["What did the Cuthberts originally want?",["A boy to help on the farm","A girl","No one","A dog"],0,"Plot","E"],
+    ["What is Anne known for?",["Her big imagination and red hair","Being quiet","Being rich","Sports"],0,"Characters","M"],
+    ["Who becomes Anne's best friend?",["Diana Barry","Gilbert","Marilla","Rachel"],0,"Characters","M"],
+    ["Which boy does Anne first dislike for teasing her?",["Gilbert Blythe","Matthew","Charlie","Moody"],0,"Characters","M"],
+    ["What mistake does Anne make with Diana?",["Accidentally gets her drunk on currant wine","Loses her","Lies to her","Steals from her"],0,"Plot","H"],
+    ["How does Anne change the Cuthberts' lives?",["She brings them joy and love","She makes them rich","She causes only trouble","Nothing"],0,"Theme","H"],
+    ["What does Anne give up to stay near Marilla?",["A college scholarship","Money","Her friends","Nothing"],0,"Plot","H"],
+  ]),
+  book("Little Women","Louisa May Alcott","Classics",[
+    ["How many March sisters are there?",["Four","Two","Three","Five"],0,"Setting","E"],
+    ["Who is the tomboyish sister who wants to be a writer?",["Jo","Meg","Beth","Amy"],0,"Characters","E"],
+    ["What are the sisters' names?",["Meg, Jo, Beth, and Amy","Anne, Jo, Meg, Amy","Jo, Beth, Mary, Amy","Meg, Jo, Sue, Amy"],0,"Characters","E"],
+    ["Where is their father during much of the story?",["Away at the Civil War","At sea","In prison","At work nearby"],0,"Setting","E"],
+    ["Who is the boy next door who befriends them?",["Laurie","Gilbert","John","Fritz"],0,"Characters","M"],
+    ["Which gentle sister becomes very ill?",["Beth","Jo","Meg","Amy"],0,"Plot","M"],
+    ["What does Jo sell to help her family?",["Her hair","Her books","Her ring","Her dresses"],0,"Plot","M"],
+    ["What does Jo refuse, surprising everyone?",["Laurie's marriage proposal","Money","School","A trip"],0,"Plot","H"],
+    ["What is a main theme of the novel?",["Family, love, and growing up","War only","Wealth","Crime"],0,"Theme","H"],
+    ["What sadly happens to Beth?",["She dies","She marries","She moves away","She fully recovers"],0,"Plot","H"],
+  ]),
+  // ===== MORE MYSTERY =====
+  book("From the Mixed-Up Files of Mrs. Basil E. Frankweiler","E.L. Konigsburg","Mystery",[
+    ["Where do Claudia and Jamie run away to?",["A museum","A school","A castle","An island"],0,"Setting","E"],
+    ["Who are the two runaways?",["Claudia and her brother Jamie","Tom and Huck","Two school friends","A girl and her dog"],0,"Characters","E"],
+    ["Where do they sleep in the museum?",["In an antique bed","On the floor","In a tent","At a hotel"],0,"Plot","E"],
+    ["What statue mystery do they try to solve?",["Whether an angel was made by Michelangelo","A missing painting","A theft","A code"],0,"Plot","E"],
+    ["How do they get money in the museum?",["From the fountain coins","From parents","From a job","They steal"],0,"Plot","M"],
+    ["Who is Mrs. Basil E. Frankweiler?",["The woman who sold the statue","A teacher","Their grandma","A guard"],0,"Characters","M"],
+    ["Why does Claudia run away?",["She feels unappreciated at home","She is in danger","She failed school","For money"],0,"Plot","M"],
+    ["What does Claudia really want from the adventure?",["To feel special and different","Money","Fame","Revenge"],0,"Theme","H"],
+    ["How does Mrs. Frankweiler help them?",["Shares the secret in exchange for a visit","Calls the police","Gives money only","Ignores them"],0,"Plot","H"],
+    ["What is a main theme?",["Identity and growing up","War","Wealth","Survival"],0,"Theme","H"],
+  ]),
+  book("The Mysterious Benedict Society","Trenton Lee Stewart","Mystery",[
+    ["How are the children chosen?",["By passing strange tests","By a lottery","By grades only","By age"],0,"Plot","E"],
+    ["Who recruits the children?",["Mr. Benedict","The Warden","A teacher","A king"],0,"Characters","E"],
+    ["Who are the four main kids?",["Reynie, Sticky, Kate, and Constance","Tom, Jim, Huck, Becky","Four siblings","Two pairs"],0,"Characters","E"],
+    ["What do the children go undercover at?",["A secret institute (school)","A factory","A castle","A ship"],0,"Setting","E"],
+    ["Who is the villain?",["Mr. Curtain","Mr. Benedict","Kate","Reynie"],0,"Characters","M"],
+    ["How are hidden messages being sent?",["Through TV and radio","By mail","By phone","By spies"],0,"Plot","M"],
+    ["What is special about Sticky?",["He remembers everything he reads","He is strong","He is invisible","He can fly"],0,"Characters","M"],
+    ["What helps the team succeed most?",["Working together with different talents","Brute strength","Wealth","Luck"],0,"Theme","H"],
+    ["What is Mr. Curtain trying to do?",["Control people's minds","Steal gold","Win an election","Build a school"],0,"Plot","H"],
+    ["How are Mr. Benedict and Mr. Curtain related?",["They are twin brothers","Father and son","Cousins","Strangers"],0,"Plot","H"],
+  ]),
+  book("Chasing Vermeer","Blue Balliett","Mystery",[
+    ["What famous thing is stolen?",["A Vermeer painting","A statue","A book","Jewels"],0,"Plot","E"],
+    ["Who are the two young detectives?",["Petra and Calder","Tom and Huck","Reynie and Kate","Two siblings"],0,"Characters","E"],
+    ["What do they investigate?",["A famous painting","A sculpture","A mural","A photo"],0,"Plot","E"],
+    ["Where is the story set?",["Chicago","New York","London","Paris"],0,"Setting","E"],
+    ["What does Calder always carry for ideas?",["Pentominoes (puzzle pieces)","A notebook","A camera","A map"],0,"Plot","M"],
+    ["Which painting are they chasing?",["A Lady Writing","The Mona Lisa","Starry Night","The Scream"],0,"Plot","M"],
+    ["What helps them notice clues?",["Patterns and coincidences","Luck only","Adults","A computer"],0,"Theme","M"],
+    ["What is a main theme?",["Seeing patterns and thinking for yourself","War","Wealth","Survival"],0,"Theme","H"],
+    ["Why does the thief say they took the painting?",["To question how art is valued","For money only","Revenge","By accident"],0,"Theme","H"],
+    ["What subject runs through the mystery?",["Art and puzzles","Sports","Cooking","Music"],0,"Theme","H"],
+  ]),
+  // ===== MORE SCIENCE FICTION =====
+  book("The Giver","Lois Lowry","Science Fiction",[
+    ["Who is the main character?",["Jonas","Meg","Karana","Tris"],0,"Characters","E"],
+    ["What special job is Jonas given?",["Receiver of Memory","Doctor","Pilot","Teacher"],0,"Plot","E"],
+    ["What is unusual about Jonas's community?",["It has no color, pain, or choices","It is underwater","It is in space","It is medieval"],0,"Setting","E"],
+    ["Who teaches Jonas?",["The Giver","The Chief Elder","His father","A robot"],0,"Characters","E"],
+    ["What does Jonas begin to see that others can't?",["Color","Ghosts","The future","Numbers"],0,"Plot","M"],
+    ["What disturbing truth does Jonas learn about 'release'?",["It means being killed","It means a vacation","It means a promotion","It means moving"],0,"Plot","M"],
+    ["What baby does Jonas try to save?",["Gabriel","Asher","Fiona","Ruby"],0,"Characters","M"],
+    ["What does the community give up for Sameness?",["Feelings, memories, and freedom","Money","Food","Buildings"],0,"Theme","H"],
+    ["What is a main theme?",["The value of memory, choice, and emotion","War","Wealth","Romance"],0,"Theme","H"],
+    ["How does Jonas's journey end (ambiguously)?",["He escapes with Gabriel toward Elsewhere","He returns home","He is caught","He becomes leader"],0,"Plot","H"],
+  ]),
+  book("The City of Ember","Jeanne DuPrau","Science Fiction",[
+    ["What is Ember?",["An underground city","A space station","An island","A castle"],0,"Setting","E"],
+    ["What problem threatens Ember?",["The lights and power are failing","A flood","A war","A plague"],0,"Plot","E"],
+    ["Who are the two main kids?",["Lina and Doon","Jonas and Gabe","Tom and Huck","Two siblings"],0,"Characters","E"],
+    ["What is running out in Ember?",["Supplies and power","Water only","Food only","People"],0,"Plot","E"],
+    ["What do Lina and Doon find?",["Instructions for leaving Ember","A treasure","A weapon","A map to the moon"],0,"Plot","M"],
+    ["How are the city's jobs assigned?",["By a lottery on Assignment Day","By grades","By age only","By choice"],0,"Setting","M"],
+    ["Who is the corrupt leader hoarding supplies?",["The Mayor","Doon's dad","Lina's granny","The Builder"],0,"Characters","M"],
+    ["How do they finally leave Ember?",["By boat down an underground river","By climbing","Through a dug tunnel","By elevator"],0,"Plot","H"],
+    ["What do they learn about their world?",["Ember was built to survive a disaster above","It is on Mars","It is a dream","It is the past"],0,"Theme","H"],
+    ["What is a main theme?",["Hope, courage, and questioning authority","Wealth","Romance","Sports"],0,"Theme","H"],
+  ]),
+  book("Artemis Fowl","Eoin Colfer","Science Fiction",[
+    ["Who is Artemis Fowl?",["A boy genius and criminal mastermind","A fairy","A detective","A king"],0,"Characters","E"],
+    ["What does Artemis want from the fairies?",["Their gold","A book","A weapon","A map"],0,"Plot","E"],
+    ["What is Holly Short?",["A fairy police officer","A human girl","A robot","A teacher"],0,"Characters","E"],
+    ["How old is Artemis, a child prodigy?",["About 12","20","30","8"],0,"Characters","E"],
+    ["Who does Artemis capture?",["The fairy Holly Short","Gold first","A troll","A book"],0,"Plot","M"],
+    ["Who is Artemis's loyal bodyguard?",["Butler","Root","Foaly","Mulch"],0,"Characters","M"],
+    ["What tech-genius centaur helps the fairies?",["Foaly","Butler","Root","Mulch"],0,"Characters","M"],
+    ["How does Artemis show he is changing?",["He shows hints of a conscience","He quits crime instantly","Nothing changes","He becomes a fairy"],0,"Theme","H"],
+    ["What two worlds blend in this book?",["High-tech sci-fi and fairy fantasy","History and romance","Sports and war","Cooking and travel"],0,"Theme","H"],
+    ["What does Artemis gain and partly give back?",["Gold, returning some to heal his mother","A kingdom","Nothing","A fairy friend only"],0,"Plot","H"],
+  ]),
+  // ===== MORE REALISTIC FICTION =====
+  book("Maniac Magee","Jerry Spinelli","Realistic Fiction",[
+    ["What is Maniac Magee famous for?",["Amazing running and athletic feats","Singing","Painting","Cooking"],0,"Characters","E"],
+    ["What is Maniac's real name?",["Jeffrey Magee","John Magee","Mike Magee","Jamie Magee"],0,"Characters","E"],
+    ["Why is Maniac homeless?",["His parents died and he ran away","He is lost","He chooses to","He is kidnapped"],0,"Plot","E"],
+    ["What town is divided in the story?",["Two Mills, split into East and West End","A big city","A village","An island"],0,"Setting","E"],
+    ["What knot does Maniac famously untie?",["Cobble's Knot","His shoes","A boat rope","A flag"],0,"Plot","M"],
+    ["Which family takes Maniac in with love?",["The Beales","The Wormwoods","The Cuthberts","The Pickwells"],0,"Characters","M"],
+    ["What divide does Maniac cross that others won't?",["The line between Black and white neighborhoods","A river","A desert","A border"],0,"Plot","M"],
+    ["What is a main theme of the book?",["Confronting racism and finding home","War","Wealth","Survival"],0,"Theme","H"],
+    ["Why is Maniac seen as a legend?",["His deeds grow into tall tales","He is rich","He is royal","He is on TV"],0,"Theme","H"],
+    ["Who does Maniac teach to read?",["Grayson, an old man","A child only","No one","A teacher"],0,"Plot","H"],
+  ]),
+  book("Walk Two Moons","Sharon Creech","Realistic Fiction",[
+    ["Who is the main character?",["Salamanca (Sal) Tree Hiddle","Anne","Mary","Karana"],0,"Characters","E"],
+    ["What is Sal doing on a road trip?",["Traveling to find her mother","Going to camp","Moving house","On vacation only"],0,"Plot","E"],
+    ["Who does Sal travel with?",["Her grandparents","Her parents","Friends","Alone"],0,"Characters","E"],
+    ["Whose story does Sal tell along the way?",["Her friend Phoebe's","Her own only","A stranger's","A teacher's"],0,"Plot","E"],
+    ["Where does the title saying come from?",["Don't judge someone until you walk two moons in their moccasins","Two moons bring luck","Walk far to learn","Travel light"],0,"Theme","M"],
+    ["What has happened to Sal's mother?",["She died in a bus accident","She moved away","She is sick","She remarried"],0,"Plot","M"],
+    ["What mysterious notes does Phoebe receive?",["Anonymous messages with sayings","Threats","Love letters","Bills"],0,"Plot","M"],
+    ["What does Sal learn on the journey?",["To accept her mother's death","To get rich","To win","To run away"],0,"Theme","H"],
+    ["What is a main theme?",["Grief, empathy, and understanding others","War","Wealth","Adventure"],0,"Theme","H"],
+    ["Why does the grandparents' trip matter?",["It helps Sal reach acceptance","For sightseeing","For money","For school"],0,"Plot","H"],
+  ]),
+  book("Out of My Mind","Sharon Draper","Realistic Fiction",[
+    ["Who is the main character?",["Melody","Sal","Anne","Mary"],0,"Characters","E"],
+    ["What condition does Melody have?",["Cerebral palsy","Blindness","Deafness","None"],0,"Setting","E"],
+    ["What is special about Melody's mind?",["She is brilliant with a photographic memory","She is forgetful","She is average","She is sleepy"],0,"Characters","E"],
+    ["What can't Melody do at the start?",["Speak out loud or walk","Hear","See","Think"],0,"Plot","E"],
+    ["What device finally lets Melody talk?",["A special computer (Medi-Talker)","A phone","Sign language only","A robot"],0,"Plot","M"],
+    ["What team does Melody make?",["The quiz (trivia) team","Soccer","Choir","Chess club"],0,"Plot","M"],
+    ["How do classmates often treat Melody?",["They underestimate her","They fear her","They adore her","They ignore class"],0,"Theme","M"],
+    ["What unfair thing happens at the big competition?",["The team leaves her behind","They win together","She quits","She cheats"],0,"Plot","H"],
+    ["What is a main theme?",["Seeing the person beyond a disability","War","Wealth","Sports glory"],0,"Theme","H"],
+    ["What does Melody prove to everyone?",["She is smart and capable","She is weak","She is average","Nothing"],0,"Theme","H"],
+  ]),
+];
+
+// ---------- Tiers ----------
+const TIERS = [
+  {name:"Rare", color:"#1cb0f6"},
+  {name:"Super Rare", color:"#2ecc71"},
+  {name:"Epic", color:"#9b59b6"},
+  {name:"Mythic", color:"#e67e22"},
+  {name:"Legendary", color:"#f1c40f"},
+  {name:"Ultra Legendary", color:"#e74c3c"},
+  {name:"Prismatic", color:"#ff4bd8"},
+];
+function tierColor(name){ return (TIERS.find(t=>t.name===name)||TIERS[0]).color; }
+
+// ---------- Skins (collectible cards) ----------
+const SKINS = {
+  characters: [
+    {id:'ch1',name:'Rookie Reader',icon:'🧑',tier:'Rare'},
+    {id:'ch2',name:'Bookcat',icon:'🐱',tier:'Rare'},
+    {id:'ch3',name:'Page Pup',icon:'🐶',tier:'Rare'},
+    {id:'ch4',name:'Fox Scholar',icon:'🦊',tier:'Super Rare'},
+    {id:'ch5',name:'Book Bear',icon:'🐻',tier:'Super Rare'},
+    {id:'ch6',name:'Penguin Prof',icon:'🐧',tier:'Super Rare'},
+    {id:'ch7',name:'Word Wizard',icon:'🧙',tier:'Epic'},
+    {id:'ch8',name:'Owl Sage',icon:'🦉',tier:'Epic'},
+    {id:'ch9',name:'Unicorn Bard',icon:'🦄',tier:'Mythic'},
+    {id:'ch10',name:'Tale Drake',icon:'🐉',tier:'Mythic'},
+    {id:'ch11',name:'Reading Royal',icon:'🤴',tier:'Legendary'},
+    {id:'ch12',name:'Lion Linguist',icon:'🦁',tier:'Legendary'},
+    {id:'ch13',name:'Tiger Titan',icon:'🐯',tier:'Ultra Legendary'},
+    {id:'ch14',name:'Wolf Wordsmith',icon:'🐺',tier:'Ultra Legendary'},
+    {id:'ch15',name:'Prismatic Prodigy',icon:'🌈',tier:'Prismatic'},
+    {id:'ch16',name:'Cosmic Reader',icon:'✨',tier:'Prismatic'},
+  ],
+  accessories: [
+    {id:'ac1',name:'Backpack',icon:'🎒',tier:'Rare'},
+    {id:'ac2',name:'Pencil',icon:'✏️',tier:'Rare'},
+    {id:'ac3',name:'Cap',icon:'🧢',tier:'Super Rare'},
+    {id:'ac4',name:'Glasses',icon:'👓',tier:'Super Rare'},
+    {id:'ac5',name:'Top Hat',icon:'🎩',tier:'Epic'},
+    {id:'ac6',name:'Shades',icon:'🕶️',tier:'Epic'},
+    {id:'ac7',name:'Sword',icon:'⚔️',tier:'Mythic'},
+    {id:'ac8',name:'Shield',icon:'🛡️',tier:'Mythic'},
+    {id:'ac9',name:'Crown',icon:'👑',tier:'Legendary'},
+    {id:'ac10',name:'Magic Wand',icon:'🪄',tier:'Legendary'},
+    {id:'ac11',name:'Jetpack',icon:'🚀',tier:'Ultra Legendary'},
+    {id:'ac12',name:'Golden Aura',icon:'🌟',tier:'Ultra Legendary'},
+    {id:'ac13',name:'Rainbow Halo',icon:'😇',tier:'Prismatic'},
+    {id:'ac14',name:'Comet Trail',icon:'☄️',tier:'Prismatic'},
+  ],
+};
+function skinById(id){ return [...SKINS.characters,...SKINS.accessories].find(s=>s.id===id); }
+
+// ---------- Chests ----------
+const CHESTS = [
+  {id:'wood',name:'Wooden Chest',icon:'🟫',cost:3,up:0.22},
+  {id:'silver',name:'Silver Chest',icon:'⬜',cost:8,up:0.38},
+  {id:'gold',name:'Golden Chest',icon:'🟨',cost:15,up:0.55},
+];
+
+// Difficulty config per grade: which difficulty bands to draw from, how many
+// multiple-choice (mc) questions, and how many open-ended (oe) questions.
+// Target test lengths. Quizzes use up to this many questions, capped by how many
+// the book actually has (≈60% explain-your-thinking).
+const GRADE_CFG = {
+  "2-3": { diffs:["E"],     mc:4, oe:6,  label:"easier" },   // up to 10
+  "4-5": { diffs:["E","M"], mc:6, oe:9,  label:"medium" },   // up to 15
+  "6+":  { diffs:["M","H"], mc:8, oe:12, label:"harder" },   // up to 20
+};
+const GRADE_QUESTIONS = GRADE_CFG; // alias used by grade validation
+const PASS_MARK = 80;
+
+// ---------- Growth tree (grows on every passing test) ----------
+// `at` = total passing tests needed to reach that stage.
+const GROWTH_STAGES = [
+  {name:'Seed',         icon:'🌰', at:0},
+  {name:'Weed',         icon:'🌱', at:5},
+  {name:'Small Plant',  icon:'🌿', at:12},
+  {name:'Big Plant',    icon:'🪴', at:22},
+  {name:'Tree',         icon:'🌳', at:35},
+  {name:'Holy Tree',    icon:'🌲', at:52},
+  {name:'Tree of Life', icon:'🌳', at:75},
+];
+function growthState(){
+  const g=APP.growth||0;
+  let idx=0;
+  for(let i=0;i<GROWTH_STAGES.length;i++){ if(g>=GROWTH_STAGES[i].at) idx=i; }
+  const cur=GROWTH_STAGES[idx], next=GROWTH_STAGES[idx+1]||null;
+  let pct=100;
+  if(next){ pct=Math.round(((g-cur.at)/(next.at-cur.at))*100); }
+  return { idx, cur, next, pct, g };
+}
+
+// ---------- Streak fire (one tier per "perfect week": streak ≥5 on all 7 days) ----------
+const FIRE_TIERS=[
+  {n:'',color:null},
+  {n:'Orange fire 🔥',color:'#ff6a00'},
+  {n:'Blue fire 🔥',color:'#1cb0f6'},
+  {n:'Green fire 🔥',color:'#2ecc71'},
+  {n:'Red fire 🔥',color:'#ff3b3b'},
+  {n:'Yellow fire 🔥',color:'#ffd400'},
+  {n:'Purple fire 🔥',color:'#9b59b6'},
+  {n:'Gray fire 🔥',color:'#9aa0a6'},
+  {n:'White fire 🔥',color:'#ffffff'},
+  {n:'Black fire 🔥',color:'#1a1a1a'},
+];
+function dateKey(d){ d=d||new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function parseKey(k){ const p=k.split('-').map(Number); return new Date(p[0],p[1]-1,p[2]); }
+// Current unbroken fire run: consecutive calendar days with a best streak ≥5.
+// A day whose best streak is under 5 (or a missed day) ends the run.
+function currentRunDays(){
+  const ds=APP.dailyStreak||{};
+  const todayK=dateKey();
+  let anchor;
+  if(ds[todayK]>=5){ anchor=new Date(); }
+  else if(ds[todayK]!==undefined){ return 0; }                  // played today, best < 5 → run broken
+  else { const y=new Date(Date.now()-864e5); if(ds[dateKey(y)]>=5) anchor=y; else return 0; } // not played yet today
+  let count=0, d=new Date(anchor);
+  while(ds[dateKey(d)]>=5){ count++; d.setDate(d.getDate()-1); }
+  return count;
+}
+function fireTier(){ return Math.floor(currentRunDays()/7); }   // 7 qualifying days = 1 fire tier
+function bankFire(tier){
+  if(tier<1) return;
+  APP.fireInventory=APP.fireInventory||[];
+  APP.fireInventory.push({ tier, label:fireLabel(tier), color:(tier>=10?'rainbow':FIRE_TIERS[tier].color), weeks:tier, date:new Date().toLocaleDateString() });
+}
+// When a run ends, move the earned fire into the inventory; keep current tier tracked.
+function syncFire(){
+  const tier=fireTier();
+  if(tier < (APP.lastFireTier||0)){ bankFire(APP.lastFireTier); APP.lastFireTier=tier; saveState(); }
+  else if(tier !== (APP.lastFireTier||0)){ APP.lastFireTier=tier; saveState(); }
+}
+function fireLabel(t){ return t>=10?'🌈 Rainbow fire':(FIRE_TIERS[t]?FIRE_TIERS[t].n:''); }
+function applyTrainerFire(card){
+  const t=fireTier();
+  if(t<=0){ card.style.background='linear-gradient(180deg,#fff,#f3faff)'; card.classList.remove('fire-on'); return; }
+  card.classList.add('fire-on');
+  if(t>=10){ card.style.background='radial-gradient(ellipse at 50% 118%, rgba(255,255,255,.25), transparent 60%), conic-gradient(from 0deg,#ff4b4b,#ffc800,#58cc02,#1cb0f6,#9b59b6,#ff4b4b)'; }
+  else { const c=FIRE_TIERS[t].color; card.style.background=`radial-gradient(ellipse at 50% 118%, ${c} 0%, transparent 62%), linear-gradient(180deg,#fff,#f6fbff)`; }
+}
+
+// ---------- Streak calendar ----------
+let calView=new Date();
+function goCalendar(){ calView=new Date(); renderCalendar(); show('calendar'); }
+function calMonth(delta){ calView=new Date(calView.getFullYear(), calView.getMonth()+delta, 1); renderCalendar(); }
+function renderCalendar(){
+  const y=calView.getFullYear(), m=calView.getMonth();
+  document.getElementById('cal-today').textContent='Today is '+new Date().toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+  document.getElementById('cal-label').textContent=new Date(y,m,1).toLocaleDateString(undefined,{month:'long',year:'numeric'});
+  const ds=APP.dailyStreak||{}; const startDay=new Date(y,m,1).getDay(); const days=new Date(y,m+1,0).getDate(); const todayK=dateKey();
+  let g='<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center;">';
+  ['Su','Mo','Tu','We','Th','Fr','Sa'].forEach(d=>g+=`<div style="font-size:.68rem;color:var(--muted);font-weight:700;">${d}</div>`);
+  for(let i=0;i<startDay;i++) g+='<div></div>';
+  for(let d=1;d<=days;d++){
+    const k=dateKey(new Date(y,m,d)); const st=ds[k]||0; const isToday=k===todayK;
+    const bg= st>=5?'#e9f9d9':(st>0?'#fff8e1':'var(--card)');
+    g+=`<div style="border:2px solid ${isToday?'var(--blue)':'var(--border)'};border-radius:8px;padding:3px 2px;min-height:44px;background:${bg};">
+      <div style="font-size:.74rem;font-weight:700;">${d}</div>${st?`<div style="font-size:.7rem;">🔥${st}</div>`:''}</div>`;
+  }
+  g+='</div>';
+  document.getElementById('cal-grid').innerHTML=g;
+  const t=fireTier();
+  document.getElementById('cal-fire').innerHTML = `🏆 Best streak ever: <b>🔥 ${APP.bestStreak||0}</b><br>`+
+    (t>0 ? `Perfect weeks (streak 5+ every day): <b>${t}</b> → trainer has ${fireLabel(t)}`
+         : 'Tip: get a streak of 5+ on every day of a week to give your trainer fire! 🔥');
+}
+
+// ---------- Helpers to build question objects ----------
+// A question row is [q, options[], correctIndex, topic, difficulty?].
+// difficulty is "E" | "M" | "H"; if omitted it is assigned by position
+// (first third easy ... middle medium ... last third hard).
+function diffByIndex(i,n){ const t=n/3; return i<t?'E':(i<2*t?'M':'H'); }
+function build(rows){ const n=rows.length; return rows.map((r,i)=>({q:r[0],options:r[1],answer:r[2],topic:r[3],diff:r[4]||diffByIndex(i,n)})); }
+function book(title,author,genre,rows){ return {title,author,genre,questions:build(rows)}; }
+
+// ---------- Open-ended questions ----------
+// Built from a book's own multiple-choice questions so they stay book-specific.
+// Graded by checking the typed answer contains a key word (lenient: any match).
+const OE_STOP=new Set(['the','a','an','and','or','of','to','in','on','his','her','its','their','is','was','for','with','he','she','it','they','as','by','at','from','that','this','your','you','very','little','some','into','when','who','what','where','are','be','him','them']);
+function extractKeywords(text){
+  const ws=text.toLowerCase().replace(/[^a-z0-9\s]/g,' ').split(/\s+/).filter(w=>w.length>2 && !OE_STOP.has(w));
+  return ws.length?ws:[text.toLowerCase().trim()];
+}
+// "Explain your thinking / show your work" prompt stems wrapped around a fact.
+const OE_STEMS=[
+  "Explain your thinking: {Q} Tell how you know.",
+  "Show your work: {Q} Give a reason from the story.",
+  "Answer and explain why: {Q}",
+  "In your own words: {Q} What in the book makes you say so?",
+];
+function makeOE(q){
+  const stem=OE_STEMS[Math.floor(Math.random()*OE_STEMS.length)];
+  return { type:'oe', q:stem.replace('{Q}',q.q), model:q.options[q.answer], keywords:extractKeywords(q.options[q.answer]), topic:q.topic };
+}
+function oePref(q){ return ({Theme:3,Plot:2,Characters:1})[q.topic]||0; }
+
+// ---------- State ----------
+function defaultState(){
+  return { grade:null, userName:'', stars:0, coins:0, diamonds:0, trainerLevel:1,
+    owned:{characters:['ch1'], accessories:[]}, equip:{character:'ch1', accessories:[]}, history:[], customBooks:[], growth:0,
+    streak:0, bestStreak:0, dailyStreak:{}, lastFireTier:0, fireInventory:[], accountEmail:'' };
+}
+let APP = loadState();
+function loadState(){
+  try{ const s=JSON.parse(localStorage.getItem('readolingo_state')); if(s) return Object.assign(defaultState(), s); }catch{}
+  return defaultState();
+}
+function saveState(){ try{ localStorage.setItem('readolingo_state', JSON.stringify(APP)); }catch(e){ alert('Could not save — storage may be full (large cover photos?).'); } }
+
+// transient
+let quiz = null;
+let chestState = null;
+
+// ---------- Navigation ----------
+function show(name){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('screen-'+name).classList.add('active');
+  document.body.classList.toggle('welcome-bg', name==='welcome');
+  window.scrollTo(0,0);
+}
+function goHome(){ renderHome(); show('home'); }
+function goGenres(){ renderGenres(); show('genres'); }
+function goShop(){ renderShop(); show('shop'); }
+function goCollection(){ renderCollection(); show('collection'); }
+function goUpgrade(){ renderUpgrade(); show('upgrade'); }
+function goReport(){ renderReport(); show('report'); }
+
+// ---------- Welcome ----------
+let pendingGrade=null;
+function selectGrade(grade, el){
+  pendingGrade=grade;
+  document.querySelectorAll('#grade-tiles .nav-tile').forEach(x=>x.classList.remove('sel'));
+  if(el) el.classList.add('sel');
+  document.getElementById('welcome-msg').textContent='';
+}
+function finishWelcome(){
+  const name=document.getElementById('w-user').value.trim();
+  const msg=document.getElementById('welcome-msg');
+  if(!name){ msg.textContent='👆 Please type your name first.'; return; }
+  if(!pendingGrade){ msg.textContent='👆 Please tap a grade level first.'; return; }
+  msg.textContent='';
+  APP.userName=name; APP.grade=pendingGrade; saveState();
+  goHome();
+}
+function changeGrade(){
+  const g=prompt('Set grade level — type 2-3, 4-5, or 6+','2-3');
+  if(g && GRADE_QUESTIONS[g.trim()]){ APP.grade=g.trim(); saveState(); renderHome(); }
+  else if(g!==null){ alert('Please type 2-3, 4-5, or 6+'); }
+}
+
+// ---------- Wallet / trainer rendering ----------
+function renderWallet(){
+  const ws=document.getElementById('w-streak'); if(ws) ws.textContent=APP.streak||0;
+  document.getElementById('w-stars').textContent=APP.stars;
+  document.getElementById('w-coins').textContent=APP.coins;
+  document.getElementById('w-diamonds').textContent=APP.diamonds;
+  document.querySelectorAll('.w-stars2').forEach(e=>e.textContent=APP.stars);
+  document.querySelectorAll('.w-coins2').forEach(e=>e.textContent=APP.coins);
+  document.querySelectorAll('.w-diamonds2').forEach(e=>e.textContent=APP.diamonds);
+}
+function trainerHTML(){
+  const c=skinById(APP.equip.character)||SKINS.characters[0];
+  const acc=APP.equip.accessories.map(id=>{const s=skinById(id);return s?s.icon:'';}).join(' ');
+  return `<div class="lvl">Lv ${APP.trainerLevel}</div>
+    <div class="icon">${c.icon}</div>
+    <div class="tname">${escapeHtml(c.name)}</div>
+    <div class="tier-label" style="color:${tierColor(c.tier)}">${c.tier}</div>
+    <div class="accessory-row">${acc}</div>
+    ${fireTier()>0?`<div style="font-weight:700;font-size:.75rem;margin-top:4px;">${fireLabel(fireTier())}</div>`:''}`;
+}
+
+// ---------- Home ----------
+function todayStats(){
+  const today=new Date().toLocaleDateString();
+  const todays=APP.history.filter(b=>b.date===today);
+  if(!todays.length) return {count:0, avg:0, totalTime:0};
+  return { count:todays.length,
+    avg:Math.round(todays.reduce((s,b)=>s+b.score,0)/todays.length),
+    totalTime:todays.reduce((s,b)=>s+b.timeSec,0) };
+}
+function renderGrowth(){
+  const el=document.getElementById('growth-box'); if(!el) return;
+  const s=growthState();
+  const glow = s.idx>=5 ? 'text-shadow:0 0 16px gold;filter:drop-shadow(0 0 6px gold);' : '';
+  const aura = s.idx===6 ? ' ✨' : '';
+  el.innerHTML=`<div style="font-size:4.2rem;line-height:1;${glow}">${s.cur.icon}${aura}</div>
+    <div style="font-weight:800;font-size:1.15rem;margin-top:4px;">${s.cur.name}</div>
+    ${ s.next
+      ? `<div class="note">${s.next.at - s.g} more passing test${(s.next.at-s.g)>1?'s':''} → ${s.next.name}</div>
+         <div class="progress-wrap" style="margin-top:6px;"><div class="progress-bar" style="width:${s.pct}%;"></div></div>`
+      : `<div class="note">🌟 Fully grown — you reached the Tree of Life!</div>` }`;
+}
+function renderDayBar(){
+  const el=document.getElementById('day-avg'); if(!el) return;
+  const t=todayStats();
+  if(!t.count){ el.innerHTML='<div class="empty">No quizzes yet today — finish a book to see your average!</div>'; return; }
+  const col=t.avg>=PASS_MARK?'var(--green)':'var(--red)';
+  el.innerHTML=`<div style="display:flex;justify-content:space-between;font-weight:700;margin-bottom:6px;">
+      <span>${t.count} book${t.count>1?'s':''} · ${fmtTime(t.totalTime)}</span>
+      <span style="color:${col};font-size:1.2rem;">${t.avg}%</span></div>
+    <div class="progress-wrap" style="height:18px;"><div class="progress-bar" style="width:${t.avg}%;background:${col};"></div></div>`;
+}
+function renderHome(){
+  renderWallet();
+  document.getElementById('home-grade').textContent=APP.grade;
+  document.getElementById('trainer-card').innerHTML=trainerHTML();
+  const c=skinById(APP.equip.character)||SKINS.characters[0];
+  document.getElementById('trainer-card').style.borderColor=tierColor(c.tier);
+  applyTrainerFire(document.getElementById('trainer-card'));
+  renderGrowth();
+  renderDayBar();
+  const list=document.getElementById('book-list');
+  if(!APP.history.length){ list.innerHTML='<div class="empty">No books yet. Tap “Read a Book” to begin!</div>'; return; }
+  list.innerHTML=APP.history.map(b=>`
+    <div class="row" style="cursor:default;">
+      <div><div style="font-weight:700;">${escapeHtml(b.book)}<span class="genre-pill">${escapeHtml(b.genre)}</span></div>
+      <div class="meta">${escapeHtml(b.author)} · Grade ${b.grade} · ${b.date}</div></div>
+      <span class="score-pill ${b.score>=PASS_MARK?'pass':'fail'}">${b.score}%</span>
+    </div>`).join('');
+}
+
+// ---------- Genres / books ----------
+function allBooks(){ return BOOKS.concat(APP.customBooks||[]); }
+function genreList(){ return [...new Set(allBooks().map(b=>b.genre))]; }
+const GENRE_ICONS={Fantasy:'🐉',Adventure:'🗺️',Animals:'🐾',Classics:'📜',Mystery:'🔍','Science Fiction':'🚀','Realistic Fiction':'🌟'};
+function renderGenres(){
+  document.getElementById('genre-list').innerHTML=genreList().map(g=>
+    `<div class="nav-tile" onclick="goBooks('${g.replace(/'/g,"\\'")}')"><span class="e">${GENRE_ICONS[g]||'📚'}</span>${g}</div>`).join('');
+}
+function goBooks(genre){
+  document.getElementById('books-title').textContent=(GENRE_ICONS[genre]||'📚')+' '+genre;
+  const list=allBooks();
+  const choices=list.filter(b=>b.genre===genre);
+  document.getElementById('book-choices').innerHTML=choices.map((b)=>{
+    const idx=list.indexOf(b);
+    const cover=b.cover?`<img src="${b.cover}" style="width:34px;height:46px;object-fit:cover;border-radius:6px;margin-right:10px;" />`:'';
+    const right=b.custom?`<span class="link" onclick="event.stopPropagation();deleteCustom(${idx})">🗑</span>`:'<span>▶️</span>';
+    return `<div class="row" onclick="startBook(${idx})">
+      <div style="display:flex;align-items:center;">${cover}<div><div style="font-weight:700;">${escapeHtml(b.title)}${b.custom?'<span class="genre-pill">yours</span>':''}</div>
+      <div class="meta">${escapeHtml(b.author)}</div></div></div>${right}</div>`;
+  }).join('');
+  show('books');
+}
+function deleteCustom(idx){
+  const b=allBooks()[idx]; if(!b||!b.custom) return;
+  if(!confirm('Delete “'+b.title+'” from your library?')) return;
+  const ci=(APP.customBooks||[]).indexOf(b);
+  if(ci>=0){ APP.customBooks.splice(ci,1); saveState(); goBooks(b.genre); }
+}
+
+// ---------- Add Your Own Book ----------
+let draft={ cover:null, mc:[], oe:[] };
+function goAddBook(){
+  draft={ cover:null, mc:[], oe:[] };
+  ['ab-title','ab-author','ab-cover'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('ab-cover-preview').innerHTML='';
+  document.getElementById('ab-msg').textContent='';
+  document.getElementById('ab-genre').innerHTML=genreList().map(g=>`<option value="${g}">${escapeHtml(g)}</option>`).join('');
+  document.getElementById('ab-cover').onchange=handleCover;
+  clearMCForm(); clearOEForm(); renderDraftList();
+  show('addbook');
+}
+function handleCover(e){
+  const file=e.target.files&&e.target.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    const img=new Image();
+    img.onload=()=>{
+      const max=400, scale=Math.min(1, max/Math.max(img.width,img.height));
+      const c=document.createElement('canvas'); c.width=Math.round(img.width*scale); c.height=Math.round(img.height*scale);
+      c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+      draft.cover=c.toDataURL('image/jpeg',0.7);
+      document.getElementById('ab-cover-preview').innerHTML=`<img src="${draft.cover}" style="max-width:140px;border-radius:10px;margin-top:8px;" />`;
+    };
+    img.src=ev.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+function val(id){ return document.getElementById(id).value.trim(); }
+function clearMCForm(){ ['mc-q','mc-o1','mc-o2','mc-o3','mc-o4'].forEach(id=>document.getElementById(id).value=''); document.getElementById('mc-correct').value='0'; document.getElementById('mc-diff').value='E'; }
+function clearOEForm(){ ['oe-q','oe-kw','oe-model'].forEach(id=>document.getElementById(id).value=''); }
+function addMCDraft(){
+  const q=val('mc-q'), o=[val('mc-o1'),val('mc-o2'),val('mc-o3'),val('mc-o4')];
+  const msg=document.getElementById('ab-msg');
+  if(!q || o.some(x=>!x)){ msg.textContent='Fill in the question and all 4 options.'; return; }
+  msg.textContent='';
+  draft.mc.push({ q, options:o, answer:+document.getElementById('mc-correct').value, topic:'Custom', diff:document.getElementById('mc-diff').value });
+  clearMCForm(); renderDraftList();
+}
+function addOEDraft(){
+  const q=val('oe-q'), kw=val('oe-kw'), model=val('oe-model');
+  const msg=document.getElementById('ab-msg');
+  if(!q || !kw || !model){ msg.textContent='Fill in the question, key words, and a sample answer.'; return; }
+  msg.textContent='';
+  draft.oe.push({ q, keywords:kw.split(',').map(s=>s.trim().toLowerCase()).filter(Boolean), model });
+  clearOEForm(); renderDraftList();
+}
+function renderDraftList(){
+  const el=document.getElementById('draft-list');
+  if(!draft.mc.length && !draft.oe.length){ el.innerHTML='<div class="empty">No questions yet — add at least one above.</div>'; return; }
+  let html='';
+  draft.mc.forEach((q,i)=>{ html+=`<div class="row" style="cursor:default;"><div><div style="font-weight:700;">🔘 ${escapeHtml(q.q)}</div><div class="meta">Multiple-choice · ${q.diff} · answer: ${escapeHtml(q.options[q.answer])}</div></div><span class="link" onclick="removeDraft('mc',${i})">remove</span></div>`; });
+  draft.oe.forEach((q,i)=>{ html+=`<div class="row" style="cursor:default;"><div><div style="font-weight:700;">✏️ ${escapeHtml(q.q)}</div><div class="meta">Explain-your-thinking · keywords: ${escapeHtml(q.keywords.join(', '))}</div></div><span class="link" onclick="removeDraft('oe',${i})">remove</span></div>`; });
+  el.innerHTML=html;
+}
+function removeDraft(type,i){ draft[type].splice(i,1); renderDraftList(); }
+function saveCustomBook(){
+  const title=val('ab-title'), author=val('ab-author'), genre=document.getElementById('ab-genre').value;
+  const msg=document.getElementById('ab-msg');
+  if(!title||!author){ msg.textContent='Please enter a title and author.'; return; }
+  if(draft.mc.length + draft.oe.length === 0){ msg.textContent='Add at least one question first.'; return; }
+  APP.customBooks=APP.customBooks||[];
+  APP.customBooks.push({ title, author, genre, custom:true, cover:draft.cover,
+    questions:draft.mc.map(q=>({...q})), oeBank:draft.oe.map(q=>({...q})) });
+  saveState();
+  alert('📚 “'+title+'” was added to your library!');
+  goBooks(genre);
+}
+
+// ---------- AI question generation (uses the user's own Anthropic API key) ----------
+const AI_SCHEMA = {
+  type:"object", additionalProperties:false,
+  required:["genre","mc","oe"],
+  properties:{
+    genre:{type:"string"},
+    mc:{type:"array", items:{ type:"object", additionalProperties:false,
+      required:["q","options","answer","topic","diff"],
+      properties:{ q:{type:"string"}, options:{type:"array", items:{type:"string"}},
+        answer:{type:"integer"}, topic:{type:"string"}, diff:{type:"string", enum:["E","M","H"]} } }},
+    oe:{type:"array", items:{ type:"object", additionalProperties:false,
+      required:["q","keywords","model"],
+      properties:{ q:{type:"string"}, keywords:{type:"array", items:{type:"string"}}, model:{type:"string"} } }}
+  }
+};
+function goAI(){
+  ['ai-title','ai-author','ai-key'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('ai-msg').textContent='';
+  const has=!!(localStorage.getItem('readolingo_apikey')||'').trim();
+  const st=document.getElementById('ai-key-status');
+  st.textContent = has ? '✅ A key is saved on this device.' : 'No key saved yet.';
+  st.style.color = has ? 'var(--green-dark)' : 'var(--muted)';
+  show('ai');
+}
+function saveApiKey(){
+  const k=document.getElementById('ai-key').value.trim();
+  const st=document.getElementById('ai-key-status');
+  if(!k){ st.textContent='Paste a key first.'; st.style.color='var(--red)'; return; }
+  try{ localStorage.setItem('readolingo_apikey', k); }catch{}
+  document.getElementById('ai-key').value='';
+  st.textContent='✅ Key saved on this device.'; st.style.color='var(--green-dark)';
+}
+function clearApiKey(){
+  localStorage.removeItem('readolingo_apikey');
+  const st=document.getElementById('ai-key-status'); st.textContent='Key cleared.'; st.style.color='var(--muted)';
+}
+function parseJSONLoose(s){
+  try{ return JSON.parse(s); }catch{}
+  const m=s.match(/\{[\s\S]*\}/);
+  if(m){ return JSON.parse(m[0]); }
+  throw new Error('could not read the questions.');
+}
+async function callClaudeForQuestions(key, title, author){
+  const genres=genreList().join(', ');
+  const prompt=`You are a children's reading-comprehension teacher. Write quiz questions about the book "${title}" by ${author}.
+Only ask about THIS specific book — plot, characters, setting, theme, and vocabulary.
+Difficulty tags: "E" = easy basic recall, "M" = medium plot detail, "H" = hard theme/inference.
+Write about 6 Easy, 5 Medium, and 5 Hard multiple-choice questions. Each has exactly 4 options, and "answer" is the 0-based index of the correct option. Use a "topic" of Plot, Characters, Setting, Theme, or Vocabulary.
+Also write 4 short "explain your thinking" questions; for each give 2-5 lowercase "keywords" a correct answer should contain, and a one-sentence "model" answer.
+Choose the best "genre" from this list: ${genres}.`;
+  const body={ model:'claude-opus-4-8', max_tokens:4000,
+    messages:[{role:'user', content:prompt}],
+    output_config:{ format:{ type:'json_schema', schema:AI_SCHEMA } } };
+  const resp=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{ 'content-type':'application/json', 'x-api-key':key,
+      'anthropic-version':'2023-06-01', 'anthropic-dangerous-direct-browser-access':'true' },
+    body:JSON.stringify(body)
+  });
+  if(!resp.ok){ const t=await resp.text(); throw new Error('API error '+resp.status+'. '+t.slice(0,140)); }
+  const json=await resp.json();
+  if(json.stop_reason==='refusal') throw new Error('the request was declined.');
+  const tb=(json.content||[]).find(b=>b.type==='text');
+  if(!tb||!tb.text) throw new Error('no questions came back.');
+  return parseJSONLoose(tb.text);
+}
+async function aiGenerate(){
+  const key=(localStorage.getItem('readolingo_apikey')||'').trim();
+  const title=val('ai-title'), author=val('ai-author');
+  const msg=document.getElementById('ai-msg');
+  if(!key){ msg.style.color='var(--red)'; msg.textContent='Save your Anthropic API key first.'; return; }
+  if(!title||!author){ msg.style.color='var(--red)'; msg.textContent='Enter both the book title and author.'; return; }
+  msg.style.color='var(--muted)'; msg.textContent='🤖 Claude is reading up on the book and writing questions… (10–30s)';
+  document.getElementById('ai-go').disabled=true;
+  try{
+    const data=await callClaudeForQuestions(key, title, author);
+    const book={ title, author, genre:(data.genre||'AI Picks'), custom:true, ai:true,
+      questions:(data.mc||[]).map(q=>({ q:q.q, options:q.options, answer:q.answer|0,
+        topic:q.topic||'Plot', diff:String(q.diff||'M').toUpperCase().slice(0,1) })),
+      oeBank:(data.oe||[]).map(o=>({ q:o.q, keywords:(o.keywords||[]).map(k=>String(k).toLowerCase()), model:o.model })) };
+    if(!book.questions.length && !book.oeBank.length) throw new Error('no usable questions.');
+    APP.customBooks=APP.customBooks||[]; APP.customBooks.push(book); saveState();
+    msg.style.color='var(--green-dark)';
+    msg.textContent=`✅ Made ${book.questions.length} multiple-choice + ${book.oeBank.length} explain questions! Starting…`;
+    const idx=allBooks().indexOf(book);
+    setTimeout(()=>startBook(idx), 800);
+  }catch(e){
+    msg.style.color='var(--red)';
+    msg.textContent='Could not generate: '+(e && e.message ? e.message : e);
+  }finally{
+    document.getElementById('ai-go').disabled=false;
+  }
+}
+
+// ---------- Quiz flow ----------
+// Build the mixed quiz: difficulty-filtered multiple-choice + open-ended at the end.
+function buildQuizItems(b){
+  const cfg=GRADE_CFG[APP.grade]||GRADE_CFG['2-3'];
+  const rank={E:0,M:1,H:2};
+  const bandRanks=cfg.diffs.map(d=>rank[d]);
+  // How far a question's difficulty is from the grade's band (0 = on-level).
+  const dist=q=>Math.min(...bandRanks.map(r=>Math.abs((rank[q.diff]??1)-r)));
+  const all=(b.questions||[]).slice();
+  // On-level questions first; when the book doesn't have enough on-level questions to
+  // fill the test, spill over to the CLOSEST difficulty — so Grade 2–3 never jumps to
+  // hard questions, and Grade 6+ stays as challenging as the book allows.
+  const ordered=shuffle(all).sort((x,y)=>dist(x)-dist(y));
+  const oeBank=b.oeBank||[];
+  const wantTotal=cfg.mc+cfg.oe;
+  const availTotal=Math.min(wantTotal, ordered.length + oeBank.length);
+  let oeN=Math.min(cfg.oe, Math.round(availTotal*(cfg.oe/wantTotal)));
+  let mcN=availTotal-oeN;
+  if(mcN>ordered.length){ oeN+=mcN-ordered.length; mcN=ordered.length; }
+
+  const mc=ordered.slice(0, mcN).map(q=>({...q, type:'mc'}));
+  const used=new Set(mc.map(q=>q.q));
+  // Open-ended: author-written bank first (custom books), then derived from the rest,
+  // also kept on-level first (then richer Theme/Plot topics within the same level).
+  let oe=shuffle(oeBank.slice()).slice(0, oeN).map(o=>({type:'oe', q:o.q, model:o.model, keywords:o.keywords, topic:'Custom'}));
+  if(oe.length<oeN){
+    const remain=ordered.filter(q=>!used.has(q.q))
+      .sort((x,y)=> dist(x)-dist(y) || oePref(y)-oePref(x));
+    oe=oe.concat(remain.slice(0, oeN-oe.length).map(makeOE));
+  }
+  return [...mc, ...oe];
+}
+function startBook(idx){
+  const b=allBooks()[idx];
+  quiz={ book:b.title, author:b.author, genre:b.genre, questions:buildQuizItems(b), current:0, answers:[], selected:null, checked:false, startTime:0 };
+  document.getElementById('skim-sub').textContent=`“${b.title}” by ${b.author}`;
+  show('skim');
+  setTimeout(()=>{ quiz.startTime=Date.now(); renderQuestion(); show('quiz'); }, 1800);
+}
+function renderQuestion(){
+  const q=quiz.questions[quiz.current], total=quiz.questions.length;
+  document.getElementById('q-count').textContent=`Question ${quiz.current+1} of ${total}`;
+  document.getElementById('progress').style.width=(quiz.current/total*100)+'%';
+  quiz.selected=null; quiz.checked=false;
+  const nb=document.getElementById('next-btn'); nb.textContent='Check';
+  const opts=document.getElementById('q-options'); opts.innerHTML='';
+
+  if(q.type==='oe'){
+    document.getElementById('q-text').textContent='✏️ '+q.q;
+    const ta=document.createElement('textarea');
+    ta.id='oe-input'; ta.rows=4; ta.placeholder='Write your thinking here…';
+    ta.style.cssText='width:100%;padding:12px 14px;border:2px solid var(--border);border-radius:12px;font-size:1rem;font-family:inherit;resize:vertical;';
+    ta.oninput=()=>{ nb.disabled = ta.value.trim().length===0; };
+    opts.appendChild(ta);
+    const hint=document.createElement('p'); hint.className='note';
+    hint.textContent='Explain-your-thinking question — write a sentence or two, then tap Check.';
+    opts.appendChild(hint);
+    nb.disabled=true;
+    return;
+  }
+
+  // multiple choice
+  document.getElementById('q-text').textContent=q.q;
+  const shuffled=shuffle(q.options.map((text,i)=>({text,correct:i===q.answer})));
+  shuffled.forEach(o=>{
+    const btn=document.createElement('button');
+    btn.className='option'; btn.textContent=o.text;
+    btn.onclick=()=>selectOption(btn,o.correct);
+    opts.appendChild(btn);
+  });
+  nb.disabled=true;
+}
+function selectOption(btn,isCorrect){
+  document.querySelectorAll('#q-options .option').forEach(b=>b.classList.remove('selected'));
+  btn.classList.add('selected');
+  quiz.selected={btn,isCorrect};
+  document.getElementById('next-btn').disabled=false;
+}
+function nextQuestion(){
+  const q=quiz.questions[quiz.current];
+  const nb=document.getElementById('next-btn');
+  if(!quiz.checked){
+    // ----- CHECK phase -----
+    if(q.type==='oe'){
+      const ta=document.getElementById('oe-input');
+      const val=(ta?ta.value:'').trim();
+      if(!val) return;
+      const correct=q.keywords.some(k=>val.toLowerCase().includes(k));
+      quiz.checked=true;
+      if(ta){ ta.disabled=true; ta.style.borderColor=correct?'var(--green)':'var(--red)'; }
+      const fb=document.createElement('div');
+      fb.className='note'; fb.style.cssText='margin-top:8px;font-size:.9rem;line-height:1.5;';
+      fb.innerHTML=(correct?'<b style="color:var(--green-dark)">✅ Nice — you mentioned a key idea!</b>'
+                          :'<b style="color:var(--red)">❌ Not quite — check the sample below.</b>')+
+        '<br><b>Sample answer:</b> '+escapeHtml(q.model);
+      document.getElementById('q-options').appendChild(fb);
+      quiz.answers.push({topic:q.topic, correct});
+      nb.textContent=(quiz.current+1<quiz.questions.length)?'Next →':'See Results';
+      return;
+    }
+    // multiple choice
+    if(!quiz.selected) return;
+    quiz.checked=true;
+    const correctVal=q.options[q.answer];
+    document.querySelectorAll('#q-options .option').forEach(b=>{
+      b.onclick=null;
+      if(b.textContent===correctVal) b.classList.add('correct');
+      else if(b.classList.contains('selected')) b.classList.add('wrong');
+    });
+    quiz.answers.push({topic:q.topic,correct:quiz.selected.isCorrect});
+    nb.textContent=(quiz.current+1<quiz.questions.length)?'Next →':'See Results';
+    return;
+  }
+  // ----- ADVANCE phase -----
+  quiz.current++;
+  if(quiz.current<quiz.questions.length) renderQuestion();
+  else showResults();
+}
+
+// ---------- Results ----------
+function showResults(){
+  const total=quiz.questions.length;
+  const correct=quiz.answers.filter(a=>a.correct).length;
+  const score=Math.round(correct/total*100);
+  const elapsed=Math.round((Date.now()-quiz.startTime)/1000);
+  const passed=score>=PASS_MARK;
+  document.getElementById('res-emoji').textContent=passed?'🎉':'💪';
+  document.getElementById('res-title').textContent=passed?'Congrats!':'Almost there!';
+  document.getElementById('res-score').textContent=score+'%';
+  document.getElementById('res-score').style.color=passed?'var(--green-dark)':'var(--red)';
+  document.getElementById('res-correct').textContent=`${correct}/${total}`;
+  document.getElementById('res-time').textContent=fmtTime(elapsed);
+
+  const byTopic={};
+  quiz.answers.forEach(a=>{ byTopic[a.topic]=byTopic[a.topic]||{c:0,t:0}; byTopic[a.topic].t++; if(a.correct)byTopic[a.topic].c++; });
+  const strengths=[],weaknesses=[];
+  Object.entries(byTopic).forEach(([topic,v])=>{ (v.c/v.t>=0.6?strengths:weaknesses).push(topic); });
+  document.getElementById('res-strengths').innerHTML=`
+    <h3>Strengths</h3>${strengths.length?strengths.map(s=>`<span class="tag s">${s}</span>`).join(''):'<span class="note">Keep practicing!</span>'}
+    <h3>To work on</h3>${weaknesses.length?weaknesses.map(w=>`<span class="tag w">${w}</span>`).join(''):'<span class="note">None — great job!</span>'}`;
+
+  const rewardBox=document.getElementById('res-reward');
+  const actions=document.getElementById('res-actions');
+  if(passed){
+    // streak grows; bigger streak = more stars and faster plant growth
+    APP.streak=(APP.streak||0)+1;
+    if(APP.streak>(APP.bestStreak||0)) APP.bestStreak=APP.streak;
+    const dk=dateKey(); APP.dailyStreak=APP.dailyStreak||{};
+    APP.dailyStreak[dk]=Math.max(APP.dailyStreak[dk]||0, APP.streak);
+    const starsEarned=Math.min(1+Math.floor(APP.streak/3), 10);
+    APP.stars+=starsEarned;
+    const growthGain=1+Math.floor(APP.streak/5);
+    const beforeStage=growthState().idx;
+    APP.growth=(APP.growth||0)+growthGain;
+    const grewStage=growthState().idx>beforeStage;
+    const gs=growthState();
+    APP.history.unshift({ book:quiz.book, author:quiz.author, genre:quiz.genre, grade:APP.grade,
+      score, correct, total, timeSec:elapsed, strengths, weaknesses, date:new Date().toLocaleDateString() });
+    saveState();
+    const growMsg = grewStage
+      ? `🌱 Grew into a <b>${gs.cur.name}</b> ${gs.cur.icon}!`
+      : (gs.next ? `🌱 Plant +${growthGain}` : '🌟 Tree of Life!');
+    rewardBox.innerHTML=`<div class="reward-banner">🔥 Streak ${APP.streak} &nbsp;·&nbsp; ⭐ +${starsEarned} &nbsp;·&nbsp; ${growMsg}</div>`;
+    actions.innerHTML=`<div class="btn-row"><button class="btn gold" onclick="goShop()">🛍️ Shop</button><button class="btn" onclick="goHome()">🏠 Home</button></div>`;
+  } else {
+    const had=APP.streak||0; APP.streak=0; saveState(); // a score under 80% breaks the streak
+    rewardBox.innerHTML = had>0
+      ? `<div class="reward-banner" style="background:#ffe9e9;border-color:var(--red);">💔 Streak of ${had} broken — score ${PASS_MARK}%+ to start a new one!</div>` : '';
+    actions.innerHTML=`<p class="note center">You need ${PASS_MARK}% to pass and earn a star. Try again!</p>
+      <button class="btn" onclick="retry()">Try Again 🔁</button>
+      <button class="btn ghost" onclick="goHome()">Back to Home</button>`;
+  }
+  show('results');
+}
+function retry(){
+  const b=allBooks().find(x=>x.title===quiz.book);
+  quiz.questions=buildQuizItems(b);
+  quiz.current=0; quiz.answers=[]; quiz.selected=null; quiz.checked=false; quiz.startTime=Date.now();
+  renderQuestion(); show('quiz');
+}
+
+// ---------- Shop ----------
+function renderShop(){
+  renderWallet();
+  document.getElementById('chest-list').innerHTML=CHESTS.map(c=>`
+    <div class="chest-card">
+      <div class="e">${c.icon}</div>
+      <div class="nm">${c.name}</div>
+      <div class="desc">Cost: ${c.cost} ⭐ · Upgrade odds per tap: ${Math.round(c.up*100)}%</div>
+      <button class="btn ${APP.stars>=c.cost?'gold':''}" ${APP.stars<c.cost?'disabled':''} onclick="buyChest('${c.id}')">
+        ${APP.stars>=c.cost?'Buy & Open':'Need more ⭐'}</button>
+    </div>`).join('');
+}
+function buyChest(id){
+  const chest=CHESTS.find(c=>c.id===id);
+  if(APP.stars<chest.cost){ alert('Not enough stars!'); return; }
+  APP.stars-=chest.cost; saveState();
+  chestState={ chest, tierIndex:0, clicksLeft:6, done:false };
+  document.getElementById('chest-name').textContent=chest.name;
+  document.getElementById('chest-emoji').textContent='🎁';
+  document.getElementById('chest-reveal').innerHTML='';
+  updateChestUI();
+  show('chest');
+}
+function updateChestUI(){
+  const t=TIERS[chestState.tierIndex];
+  const el=document.getElementById('chest-tier');
+  el.textContent=t.name; el.style.color=t.color;
+  document.getElementById('chest-clicks').textContent= chestState.clicksLeft>0
+    ? `Tap ${chestState.clicksLeft} more time${chestState.clicksLeft>1?'s':''}!` : 'Opening…';
+}
+function chestClick(){
+  if(!chestState || chestState.done || chestState.clicksLeft<=0) return;
+  chestState.clicksLeft--;
+  // chance to upgrade tier
+  if(Math.random()<chestState.chest.up && chestState.tierIndex<TIERS.length-1){
+    chestState.tierIndex++;
+  }
+  const e=document.getElementById('chest-emoji');
+  e.classList.remove('shake'); void e.offsetWidth; e.classList.add('shake');
+  updateChestUI();
+  if(chestState.clicksLeft<=0){ chestState.done=true; setTimeout(finalizeChest,350); }
+}
+function finalizeChest(){
+  const tier=TIERS[chestState.tierIndex].name;
+  document.getElementById('chest-emoji').textContent='📦';
+  let html;
+  if(Math.random()<0.10){
+    // 10% coins + diamonds, scaled a bit by tier
+    const mult=chestState.tierIndex+1;
+    const coins=40*mult + Math.floor(Math.random()*60*mult);
+    const dia=3*mult + Math.floor(Math.random()*5*mult);
+    APP.coins+=coins; APP.diamonds+=dia; saveState();
+    html=`<div class="reveal-card" style="border-color:${tierColor(tier)}">
+      <div class="e">💰</div><div style="font-weight:800;">Treasure!</div>
+      <div style="margin-top:6px;">🪙 +${coins} coins<br>💎 +${dia} diamonds</div>
+      <div class="tr" style="color:${tierColor(tier)};font-weight:700;margin-top:4px;">${tier} chest</div></div>`;
+  } else {
+    const reward=grantSkin(tier);
+    if(reward.skin){
+      html=`<div class="reveal-card ${tier==='Prismatic'?'prismatic':''}" style="border-color:${tierColor(tier)}">
+        <div class="e">${reward.skin.icon}</div>
+        <div style="font-weight:800;">${escapeHtml(reward.skin.name)}</div>
+        <div class="tr" style="color:${tierColor(tier)};font-weight:700;">${tier} ${reward.skin.kind}</div>
+        <div class="note">${reward.dupe?'Duplicate → converted to coins!':'New '+reward.skin.kind+' unlocked!'}</div></div>`;
+    } else {
+      // total dupe fallback already added coins
+      html=`<div class="reveal-card" style="border-color:${tierColor(tier)}">
+        <div class="e">🪙</div><div style="font-weight:800;">+${reward.coins} coins</div>
+        <div class="note">You already own all ${tier} skins!</div></div>`;
+    }
+  }
+  document.getElementById('chest-reveal').innerHTML=html+
+    `<button class="btn" onclick="goShop()">Collect & Back to Shop</button>
+     <button class="btn ghost" onclick="goCollection()">View Collection</button>`;
+}
+function grantSkin(tier){
+  // pick character or accessory of this tier the user doesn't own yet
+  const pickFrom=Math.random()<0.5?'characters':'accessories';
+  const order=pickFrom==='characters'?['characters','accessories']:['accessories','characters'];
+  for(const kind of order){
+    const unowned=SKINS[kind].filter(s=>s.tier===tier && !APP.owned[kind].includes(s.id));
+    if(unowned.length){
+      const s=unowned[Math.floor(Math.random()*unowned.length)];
+      APP.owned[kind].push(s.id); saveState();
+      return { skin:{...s, kind:kind==='characters'?'Character':'Accessory'}, dupe:false };
+    }
+  }
+  // own everything in this tier -> give a duplicate's worth of coins, but still show a card
+  const all=[...SKINS.characters,...SKINS.accessories].filter(s=>s.tier===tier);
+  const coins=50*(chestState.tierIndex+1);
+  APP.coins+=coins; saveState();
+  if(all.length){ const s=all[Math.floor(Math.random()*all.length)]; return { skin:{...s,kind:'Character'===''?'':'(duplicate)'}, dupe:true, coins }; }
+  return { coins };
+}
+
+// ---------- Collection ----------
+function renderCollection(){
+  const ch=document.getElementById('coll-characters');
+  ch.innerHTML=SKINS.characters.map(s=>{
+    const owned=APP.owned.characters.includes(s.id);
+    const eq=APP.equip.character===s.id;
+    return skinCard(s,owned,eq,owned?`equipChar('${s.id}')`:'');
+  }).join('');
+  const ac=document.getElementById('coll-accessories');
+  ac.innerHTML=SKINS.accessories.map(s=>{
+    const owned=APP.owned.accessories.includes(s.id);
+    const eq=APP.equip.accessories.includes(s.id);
+    return skinCard(s,owned,eq,owned?`toggleAcc('${s.id}')`:'');
+  }).join('');
+}
+function skinCard(s,owned,eq,onclick){
+  const cls='skin'+(eq?' equipped':'')+(s.tier==='Prismatic'?' prismatic':'');
+  const style=`border-color:${owned?tierColor(s.tier):'var(--border)'};${owned?'':'opacity:.4;filter:grayscale(1);'}`;
+  return `<div class="${cls}" style="${style}" ${onclick?`onclick="${onclick}"`:''}>
+    ${eq?'<span class="eqbadge">✅</span>':''}
+    <div class="e">${owned?s.icon:'❓'}</div>
+    <div class="sn">${owned?escapeHtml(s.name):'Locked'}</div>
+    <div class="tr" style="color:${tierColor(s.tier)}">${s.tier}</div></div>`;
+}
+function equipChar(id){ if(!APP.owned.characters.includes(id))return; APP.equip.character=id; saveState(); renderCollection(); }
+function toggleAcc(id){
+  if(!APP.owned.accessories.includes(id))return;
+  const i=APP.equip.accessories.indexOf(id);
+  if(i>=0) APP.equip.accessories.splice(i,1);
+  else { if(APP.equip.accessories.length>=3){ alert('You can equip up to 3 accessories.'); return; } APP.equip.accessories.push(id); }
+  saveState(); renderCollection();
+}
+
+// ---------- Trainer upgrade ----------
+function upgradeCost(){ return { coins: APP.trainerLevel*150, diamonds: APP.trainerLevel*15 }; }
+function renderUpgrade(){
+  document.getElementById('upgrade-trainer').innerHTML=trainerHTML();
+  const c=upgradeCost();
+  document.getElementById('upgrade-cost').innerHTML=`Next level (Lv ${APP.trainerLevel+1}) costs:<br>🪙 ${c.coins} coins &nbsp; + &nbsp; 💎 ${c.diamonds} diamonds`;
+  const btn=document.getElementById('upgrade-btn');
+  const can=APP.coins>=c.coins && APP.diamonds>=c.diamonds;
+  btn.disabled=!can; btn.textContent=can?'Upgrade!':'Not enough coins/diamonds';
+}
+function doUpgrade(){
+  const c=upgradeCost();
+  if(APP.coins<c.coins||APP.diamonds<c.diamonds){ alert('Not enough coins/diamonds!'); return; }
+  APP.coins-=c.coins; APP.diamonds-=c.diamonds; APP.trainerLevel++; saveState();
+  renderUpgrade(); renderWallet();
+  alert('🎉 Trainer upgraded to Level '+APP.trainerLevel+'!');
+}
+
+// ---------- Report ----------
+function renderReport(){
+  const today=new Date().toLocaleDateString();
+  const todays=APP.history.filter(b=>b.date===today);
+  document.getElementById('report-preview').innerHTML= todays.length?'' :
+    `<div class="note">No passed quizzes today yet. Finish a book first!</div>`;
+}
+// Turn the day's results into a solid, parent-friendly write-up (rule-based, not an LLM).
+function reportSummary(todays){
+  const name=APP.userName||'Your reader';
+  const n=todays.length;
+  const avg=Math.round(todays.reduce((s,b)=>s+b.score,0)/n);
+  const totalTime=todays.reduce((s,b)=>s+b.timeSec,0);
+  const strengths=[...new Set(todays.flatMap(b=>b.strengths))];
+  const weak=[...new Set(todays.flatMap(b=>b.weaknesses))];
+  const bookWord=n===1?'book':'books';
+  let overall;
+  if(avg>=95) overall=`${name} had an outstanding reading day — averaging ${avg}% across ${n} ${bookWord} and showing excellent comprehension.`;
+  else if(avg>=88) overall=`${name} had a strong reading day, averaging ${avg}% across ${n} ${bookWord} with confident understanding.`;
+  else if(avg>=80) overall=`${name} passed every quiz today, averaging a solid ${avg}% across ${n} ${bookWord}.`;
+  else overall=`${name} put in real effort today, averaging ${avg}% across ${n} ${bookWord} — a good base to build on.`;
+  const strLine = strengths.length
+    ? `Strongest skills today: ${strengths.join(', ')} — ${name} handled these confidently.`
+    : `${name} is still building consistent strengths; steady practice will get there.`;
+  const tips={ Plot:'retell the main events in order', Characters:'pause to ask who is in each scene and what they want',
+    Setting:'notice where and when each scene happens', Theme:'ask "what big lesson is the author teaching?"',
+    Vocabulary:'guess tricky words from the sentence around them', Custom:'review the missed questions together' };
+  const weakLine = weak.length
+    ? `Worth a little more practice: ${weak.map(w=>`${w} (try: ${tips[w]||'review together'})`).join('; ')}.`
+    : `No clear weak spots today — every skill area looked strong. 🎉`;
+  const timeLine = `Time spent reading and quizzing today: ${fmtTime(totalTime)}.`;
+  return { avg, totalTime, strengths, weak, overall, strLine, weakLine, timeLine };
+}
+// Build the report as plain text for emailing (and validate inputs).
+function reportText(){
+  const family=document.getElementById('in-family').value.trim();
+  const goals=document.getElementById('in-goals').value.trim()||'(none set)';
+  const today=new Date().toLocaleDateString();
+  const todays=APP.history.filter(b=>b.date===today);
+  if(!family) return { err:'Please enter a family email address first.' };
+  if(!todays.length) return { err:'No passed quizzes today to report yet — finish a book first!' };
+  const s=reportSummary(todays);
+  const body=[
+    'Readolingo — Daily Reading Report',
+    'Date: '+today+'   Reader: '+(APP.userName||'Reader'),
+    '',
+    s.overall,
+    '',
+    'Books completed today:',
+    ...todays.map(b=>`  • ${b.book} — ${b.score}% (Grade ${b.grade}, ${fmtTime(b.timeSec)})`),
+    '',
+    'Average score: '+s.avg+'%',
+    s.strLine,
+    s.weakLine,
+    s.timeLine,
+    '',
+    'Goals: '+goals,
+    '',
+    'Sent from Readolingo 📚',
+  ].join('\n');
+  return { family, subject:`Readolingo reading report — ${APP.userName||'Reader'} (${today})`, body };
+}
+// Open the user's own email app / Gmail with the report pre-filled (no credentials).
+function emailReport(){
+  const r=reportText();
+  if(r.err){ alert(r.err); return; }
+  const url='mailto:'+encodeURIComponent(r.family)+'?subject='+encodeURIComponent(r.subject)+'&body='+encodeURIComponent(r.body);
+  window.location.href=url;
+}
+function sendReport(){
+  const family=document.getElementById('in-family').value.trim();
+  const goals=document.getElementById('in-goals').value.trim()||'(none set)';
+  const today=new Date().toLocaleDateString();
+  const todays=APP.history.filter(b=>b.date===today);
+  if(!family){ alert('Please enter a family email address first.'); return; }
+  if(!todays.length){ alert('No passed quizzes today to report yet — finish a book first!'); return; }
+  const s=reportSummary(todays);
+  const col=s.avg>=PASS_MARK?'var(--green)':'var(--red)';
+  document.getElementById('report-preview').innerHTML=`
+    <div class="report-box">
+      <h3>📚 Readolingo — Daily Reading Report</h3>
+      <b>Date:</b> ${today} &nbsp; <b>Reader:</b> ${escapeHtml(APP.userName||'Reader')} &nbsp; <b>To:</b> ${escapeHtml(family)}
+      <p style="margin-top:8px;">${escapeHtml(s.overall)}</p>
+      <h3>📈 Score</h3>
+      <div style="display:flex;justify-content:space-between;font-weight:700;"><span>Average across ${todays.length} book${todays.length>1?'s':''}</span><span style="color:${col}">${s.avg}%</span></div>
+      <div class="progress-wrap" style="margin:5px 0 8px;"><div class="progress-bar" style="width:${s.avg}%;background:${col};"></div></div>
+      ${todays.map(b=>`• <b>${escapeHtml(b.book)}</b> — ${b.score}% <span style="color:var(--muted)">(Grade ${b.grade}, ${fmtTime(b.timeSec)})</span>`).join('<br>')}
+      <h3>💪 Strengths</h3>${escapeHtml(s.strLine)}
+      <h3>🎯 Areas to work on</h3>${escapeHtml(s.weakLine)}
+      <h3>⏱ Time spent</h3>${fmtTime(s.totalTime)}
+      <h3>🎯 Goals</h3>${escapeHtml(goals)}
+    </div>
+    <p class="note">↑ This is a preview. Tap “📧 Open in Email to Send” to send it from your own email.</p>`;
+}
+
+// ---------- Utils ----------
+function shuffle(arr){ for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; } return arr; }
+function fmtTime(sec){ const m=Math.floor(sec/60),s=sec%60; return m?`${m}m ${s}s`:`${s}s`; }
+function escapeHtml(str){ return String(str).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+// ---------- Animated background ----------
+function buildBackground(){
+  const layer=document.getElementById('bg-layer'); if(!layer) return;
+  const emojis=['📚','📖','✨','⭐','🦊','🐉','🦉','🌟','🐧','🦄','📕','🔖','💫','🧠'];
+  let html='';
+  for(let i=0;i<16;i++){
+    const e=emojis[Math.floor(Math.random()*emojis.length)];
+    const left=Math.random()*100;
+    const dur=14+Math.random()*16;     // 14–30s rise
+    const delay=-Math.random()*30;     // negative => staggered, already mid-flight
+    const size=1.4+Math.random()*2.2;  // rem
+    html+=`<span class="floaty" style="left:${left}%;font-size:${size}rem;animation-duration:${dur}s;animation-delay:${delay}s;">${e}</span>`;
+  }
+  layer.innerHTML=html;
+}
+
+// ---------- Init ----------
+buildBackground();
+syncFire(); // bank any fire whose run ended while away
+if(APP.grade){ goHome(); } else { show('welcome'); }
+</script>
+</body>
+</html>
