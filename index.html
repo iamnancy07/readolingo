@@ -227,58 +227,39 @@
     </div>
   </section>
 
-  <!-- ===== ADD A BOOK ===== -->
+  <!-- ===== ADD A BOOK (AI-Powered) ===== -->
   <section id="screen-addbook" class="screen">
     <div class="card">
-      <h2>➕ Add Your Own Book</h2>
-      <p style="color:var(--muted);font-size:.85rem;">Type the book details and write your own questions. It joins your library and plays like any other book.</p>
-      <label>Book title</label>
-      <input id="ab-title" placeholder="e.g. My Favorite Story" />
-      <label>Author</label>
-      <input id="ab-author" placeholder="e.g. A. Writer" />
+      <h2>📷 Add a Book with AI</h2>
+      <p style="color:var(--muted);font-size:.85rem;">Take a screenshot of the book cover. Claude will recognize it, then generate 10 personalized questions based on your grade level.</p>
+    </div>
+
+    <div class="card">
+      <label>Book cover screenshot</label>
+      <input id="ab-cover-upload" type="file" accept="image/*" />
+      <div id="ab-cover-preview" class="center" style="margin-top:12px;"></div>
+    </div>
+
+    <div class="card">
       <label>Genre</label>
       <select id="ab-genre"></select>
-      <label>Cover photo / screenshot (optional)</label>
-      <input id="ab-cover" type="file" accept="image/*" />
-      <div id="ab-cover-preview" class="center"></div>
     </div>
 
     <div class="card">
-      <h3>🔘 Add a multiple-choice question</h3>
-      <input id="mc-q" placeholder="Question" />
-      <input id="mc-o1" placeholder="Option 1" style="margin-top:8px;" />
-      <input id="mc-o2" placeholder="Option 2" style="margin-top:8px;" />
-      <input id="mc-o3" placeholder="Option 3" style="margin-top:8px;" />
-      <input id="mc-o4" placeholder="Option 4" style="margin-top:8px;" />
-      <div class="grid" style="margin-top:8px;">
-        <select id="mc-correct">
-          <option value="0">Correct: Option 1</option>
-          <option value="1">Correct: Option 2</option>
-          <option value="2">Correct: Option 3</option>
-          <option value="3">Correct: Option 4</option>
-        </select>
-        <select id="mc-diff">
-          <option value="E">Easy (Grade 2–3+)</option>
-          <option value="M">Medium (Grade 4–5+)</option>
-          <option value="H">Hard (Grade 6+)</option>
-        </select>
+      <h3>🔑 Anthropic API Key</h3>
+      <p style="color:var(--muted);font-size:.85rem;">Same as "Generate a Book with AI". Stored only here, never shared.</p>
+      <label>Your Anthropic API key</label>
+      <input id="ab-ai-key" type="password" placeholder="sk-ant-..." />
+      <div class="btn-row">
+        <button class="btn secondary" onclick="saveAbApiKey()">Save key</button>
+        <button class="btn ghost" onclick="clearAbApiKey()">Clear key</button>
       </div>
-      <button class="btn secondary" onclick="addMCDraft()">Add this question</button>
+      <p id="ab-key-status" class="note"></p>
     </div>
 
     <div class="card">
-      <h3>✏️ Add an explain-your-thinking question</h3>
-      <input id="oe-q" placeholder="Question (e.g. Why did the hero change?)" />
-      <input id="oe-kw" placeholder="Key words for a correct answer (comma separated)" style="margin-top:8px;" />
-      <input id="oe-model" placeholder="Sample strong answer" style="margin-top:8px;" />
-      <button class="btn secondary" onclick="addOEDraft()">Add this question</button>
-    </div>
-
-    <div class="card">
-      <h3>Questions added</h3>
-      <div id="draft-list"><div class="empty">No questions yet — add at least one above.</div></div>
-      <p id="ab-msg" class="note" style="color:var(--red);min-height:1em;"></p>
-      <button class="btn" onclick="saveCustomBook()">💾 Save Book to Library</button>
+      <p id="ab-msg" class="note" style="min-height:1em;"></p>
+      <button class="btn gold" id="ab-generate-btn" onclick="aiAddBook()">✨ Recognize & Generate 10 Questions</button>
       <button class="btn ghost" onclick="goGenres()">Cancel</button>
     </div>
   </section>
@@ -1436,74 +1417,153 @@ function deleteCustom(idx){
   if(ci>=0){ APP.customBooks.splice(ci,1); saveState(); goBooks(b.genre); }
 }
 
-// ---------- Add Your Own Book ----------
-let draft={ cover:null, mc:[], oe:[] };
+// ---------- Add Book with AI (screenshot recognition + question generation) ----------
+function val(id){ return document.getElementById(id).value.trim(); }
 function goAddBook(){
-  draft={ cover:null, mc:[], oe:[] };
-  ['ab-title','ab-author','ab-cover'].forEach(id=>document.getElementById(id).value='');
+  ['ab-cover-upload','ab-ai-key'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('ab-cover-preview').innerHTML='';
   document.getElementById('ab-msg').textContent='';
-  document.getElementById('ab-genre').innerHTML=genreList().map(g=>`<option value="${g}">${escapeHtml(g)}</option>`).join('');
-  document.getElementById('ab-cover').onchange=handleCover;
-  clearMCForm(); clearOEForm(); renderDraftList();
+  document.getElementById('ab-genre').innerHTML=genreList().map(g=>`<option value=”${g}”>${escapeHtml(g)}</option>`).join('');
+  document.getElementById('ab-cover-upload').onchange=handleAbCover;
+  updateAbKeyStatus();
   show('addbook');
 }
-function handleCover(e){
+function handleAbCover(e){
   const file=e.target.files&&e.target.files[0]; if(!file) return;
   const reader=new FileReader();
   reader.onload=ev=>{
     const img=new Image();
     img.onload=()=>{
-      const max=400, scale=Math.min(1, max/Math.max(img.width,img.height));
+      const max=300, scale=Math.min(1, max/Math.max(img.width,img.height));
       const c=document.createElement('canvas'); c.width=Math.round(img.width*scale); c.height=Math.round(img.height*scale);
       c.getContext('2d').drawImage(img,0,0,c.width,c.height);
-      draft.cover=c.toDataURL('image/jpeg',0.7);
-      document.getElementById('ab-cover-preview').innerHTML=`<img src="${draft.cover}" style="max-width:140px;border-radius:10px;margin-top:8px;" />`;
+      const dataUrl=c.toDataURL('image/jpeg',0.8);
+      abScreenshot=dataUrl.split(',')[1];
+      document.getElementById('ab-cover-preview').innerHTML=`<img src=”${dataUrl}” style=”max-width:180px;border-radius:10px;margin:8px 0;” />`;
     };
     img.src=ev.target.result;
   };
   reader.readAsDataURL(file);
 }
-function val(id){ return document.getElementById(id).value.trim(); }
-function clearMCForm(){ ['mc-q','mc-o1','mc-o2','mc-o3','mc-o4'].forEach(id=>document.getElementById(id).value=''); document.getElementById('mc-correct').value='0'; document.getElementById('mc-diff').value='E'; }
-function clearOEForm(){ ['oe-q','oe-kw','oe-model'].forEach(id=>document.getElementById(id).value=''); }
-function addMCDraft(){
-  const q=val('mc-q'), o=[val('mc-o1'),val('mc-o2'),val('mc-o3'),val('mc-o4')];
+let abScreenshot=null;
+function saveAbApiKey(){
+  const k=document.getElementById('ab-ai-key').value.trim();
+  const st=document.getElementById('ab-key-status');
+  if(!k){ st.textContent='Paste a key first.'; st.style.color='var(--red)'; return; }
+  try{ localStorage.setItem('readolingo_ab_apikey', k); }catch{}
+  document.getElementById('ab-ai-key').value='';
+  updateAbKeyStatus();
+}
+function clearAbApiKey(){
+  localStorage.removeItem('readolingo_ab_apikey');
+  updateAbKeyStatus();
+}
+function updateAbKeyStatus(){
+  const has=!!(localStorage.getItem('readolingo_ab_apikey')||'').trim();
+  const st=document.getElementById('ab-key-status');
+  st.textContent = has ? '✅ A key is saved on this device.' : 'No key saved yet.';
+  st.style.color = has ? 'var(--green-dark)' : 'var(--muted)';
+}
+async function aiAddBook(){
+  const key=(localStorage.getItem('readolingo_ab_apikey')||'').trim();
+  const genre=document.getElementById('ab-genre').value;
   const msg=document.getElementById('ab-msg');
-  if(!q || o.some(x=>!x)){ msg.textContent='Fill in the question and all 4 options.'; return; }
-  msg.textContent='';
-  draft.mc.push({ q, options:o, answer:+document.getElementById('mc-correct').value, topic:'Custom', diff:document.getElementById('mc-diff').value });
-  clearMCForm(); renderDraftList();
+  if(!key){ msg.style.color='var(--red)'; msg.textContent='Save your Anthropic API key first.'; return; }
+  if(!abScreenshot){ msg.style.color='var(--red)'; msg.textContent='Upload a screenshot of the book cover.'; return; }
+  if(!genre){ msg.style.color='var(--red)'; msg.textContent='Select a genre.'; return; }
+  msg.style.color='var(--muted)'; msg.textContent='📷 Recognizing the book from your screenshot… (10–30s)';
+  document.getElementById('ab-generate-btn').disabled=true;
+  try{
+    const data=await callClaudeForAddBook(key, abScreenshot, genre);
+    const mcN=data.questions.length, oeN=data.oeBank.length;
+    const book={ title:data.title, author:data.author, genre:genre, custom:true, ai:true,
+      questions:data.questions, oeBank:data.oeBank };
+    APP.customBooks=APP.customBooks||[]; APP.customBooks.push(book); saveState();
+    msg.style.color='var(--green-dark)';
+    msg.textContent=`✅ Added “${data.title}” with ${mcN} multiple-choice + ${oeN} explain questions! Starting…`;
+    const idx=allBooks().indexOf(book);
+    setTimeout(()=>startBook(idx), 800);
+  }catch(e){
+    msg.style.color='var(--red)';
+    msg.textContent='Could not generate: '+(e && e.message ? e.message : e);
+  }finally{
+    document.getElementById('ab-generate-btn').disabled=false;
+  }
 }
-function addOEDraft(){
-  const q=val('oe-q'), kw=val('oe-kw'), model=val('oe-model');
-  const msg=document.getElementById('ab-msg');
-  if(!q || !kw || !model){ msg.textContent='Fill in the question, key words, and a sample answer.'; return; }
-  msg.textContent='';
-  draft.oe.push({ q, keywords:kw.split(',').map(s=>s.trim().toLowerCase()).filter(Boolean), model });
-  clearOEForm(); renderDraftList();
+
+// ---------- AI Add Book (recognize from screenshot + generate 10 questions) ----------
+async function callClaudeForAddBook(key, imageBase64, selectedGenre){
+  const gradeCfg=GRADE_CFG[APP.grade]||GRADE_CFG['2-3'];
+  let mcTarget=10, oeTarget=0;
+  if(APP.grade==='2-3'){ mcTarget=8; oeTarget=2; }
+  else if(APP.grade==='4-5'){ mcTarget=6; oeTarget=4; }
+  else if(APP.grade==='6+'){ mcTarget=4; oeTarget=6; }
+
+  const diffs=gradeCfg.diffs;
+  const genres=genreList().join(', ');
+  const prompt=`You are examining a book cover image and will generate exactly 10 comprehension questions for it.
+
+First, IDENTIFY the book from the cover image and extract the title and author. If you can't identify it, make your best guess from any visible text.
+
+Then, write exactly ${mcTarget} multiple-choice questions and ${oeTarget} explain-your-thinking questions for this book.
+
+Multiple-choice: Each has exactly 4 options. "answer" is the 0-based index (0, 1, 2, or 3) of the correct option. Set "topic" to Plot, Characters, Setting, Theme, or Vocabulary. Set "diff" to one of these: ${diffs.join(', ')}.
+
+Explain-your-thinking: For each, provide 5+ lowercase "keywords" that a correct answer MUST contain (each answer must be at least one full sentence and include ALL these keywords). Also provide a one-sentence "model" answer showing the minimum acceptable response.
+
+All questions should be roughly the same difficulty level based on grade ${APP.grade}.
+Set "genre" to the best match from: ${genres}.
+Return ONLY a valid JSON object (no markdown, no explanation).`;
+
+  const body={
+    model:'claude-opus-4-8',
+    max_tokens:4000,
+    messages:[{
+      role:'user',
+      content:[
+        { type:'image', source:{ type:'base64', media_type:'image/jpeg', data:imageBase64 } },
+        { type:'text', text:prompt }
+      ]
+    }],
+    output_config:{ format:{ type:'json_schema', schema:ADD_BOOK_SCHEMA } }
+  };
+
+  const resp=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{ 'content-type':'application/json', 'x-api-key':key,
+      'anthropic-version':'2023-06-01', 'anthropic-dangerous-direct-browser-access':'true' },
+    body:JSON.stringify(body)
+  });
+  if(!resp.ok){ const t=await resp.text(); throw new Error('API error '+resp.status+'. '+t.slice(0,140)); }
+  const json=await resp.json();
+  if(json.stop_reason==='refusal') throw new Error('the request was declined.');
+  const tb=(json.content||[]).find(b=>b.type==='text');
+  if(!tb||!tb.text) throw new Error('no questions came back.');
+  const data=parseJSONLoose(tb.text);
+  return {
+    title:data.title||'Unknown Book',
+    author:data.author||'Unknown Author',
+    questions:(data.mc||[]).map(q=>({ q:q.q, options:q.options, answer:q.answer|0,
+      topic:q.topic||'Plot', diff:String(q.diff||'M').toUpperCase().slice(0,1) })),
+    oeBank:(data.oe||[]).map(o=>({ q:o.q, keywords:(o.keywords||[]).map(k=>String(k).toLowerCase()), model:o.model }))
+  };
 }
-function renderDraftList(){
-  const el=document.getElementById('draft-list');
-  if(!draft.mc.length && !draft.oe.length){ el.innerHTML='<div class="empty">No questions yet — add at least one above.</div>'; return; }
-  let html='';
-  draft.mc.forEach((q,i)=>{ html+=`<div class="row" style="cursor:default;"><div><div style="font-weight:700;">🔘 ${escapeHtml(q.q)}</div><div class="meta">Multiple-choice · ${q.diff} · answer: ${escapeHtml(q.options[q.answer])}</div></div><span class="link" onclick="removeDraft('mc',${i})">remove</span></div>`; });
-  draft.oe.forEach((q,i)=>{ html+=`<div class="row" style="cursor:default;"><div><div style="font-weight:700;">✏️ ${escapeHtml(q.q)}</div><div class="meta">Explain-your-thinking · keywords: ${escapeHtml(q.keywords.join(', '))}</div></div><span class="link" onclick="removeDraft('oe',${i})">remove</span></div>`; });
-  el.innerHTML=html;
-}
-function removeDraft(type,i){ draft[type].splice(i,1); renderDraftList(); }
-function saveCustomBook(){
-  const title=val('ab-title'), author=val('ab-author'), genre=document.getElementById('ab-genre').value;
-  const msg=document.getElementById('ab-msg');
-  if(!title||!author){ msg.textContent='Please enter a title and author.'; return; }
-  if(draft.mc.length + draft.oe.length === 0){ msg.textContent='Add at least one question first.'; return; }
-  APP.customBooks=APP.customBooks||[];
-  APP.customBooks.push({ title, author, genre, custom:true, cover:draft.cover,
-    questions:draft.mc.map(q=>({...q})), oeBank:draft.oe.map(q=>({...q})) });
-  saveState();
-  alert('📚 “'+title+'” was added to your library!');
-  goBooks(genre);
-}
+
+const ADD_BOOK_SCHEMA = {
+  type:"object", additionalProperties:false,
+  required:["title","author","mc","oe"],
+  properties:{
+    title:{type:"string"},
+    author:{type:"string"},
+    mc:{type:"array", items:{ type:"object", additionalProperties:false,
+      required:["q","options","answer","topic","diff"],
+      properties:{ q:{type:"string"}, options:{type:"array", items:{type:"string"}, minItems:4, maxItems:4},
+        answer:{type:"integer", minimum:0, maximum:3}, topic:{type:"string"}, diff:{type:"string", enum:["E","M","H"]} } }},
+    oe:{type:"array", items:{ type:"object", additionalProperties:false,
+      required:["q","keywords","model"],
+      properties:{ q:{type:"string"}, keywords:{type:"array", items:{type:"string"}, minItems:5}, model:{type:"string"} } }}
+  }
+};
 
 // ---------- AI question generation (uses the user's own Anthropic API key) ----------
 const AI_SCHEMA = {
