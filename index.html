@@ -1545,7 +1545,12 @@ async function callClaudeForAddBook(key, imageBase64, selectedGenre){
   const genres=genreList().join(', ');
   const prompt=`You are examining a book cover image and will generate exactly 10 comprehension questions for it.
 
-First, IDENTIFY the book from the cover image and extract the title and author. If you can't identify it, make your best guess from any visible text. Also determine the TOTAL NUMBER OF CHAPTERS in the book.
+CRITICAL - Book Identification:
+1. READ the book title and author clearly from the cover image
+2. Use your knowledge to determine the ACTUAL total number of chapters in this real book
+3. Return the REAL title, author, and chapter count - NOT "Unknown"
+
+If the cover text is hard to read, do your best to read every visible letter and word. This information MUST be accurate.
 
 Then, write exactly ${mcTarget} multiple-choice questions and ${oeTarget} explain-your-thinking questions for this book.
 
