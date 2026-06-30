@@ -235,7 +235,7 @@
 
       <div style="margin:16px 0;">
         <label style="display:block;font-weight:700;margin-bottom:8px;">⚠️ Total chapters in this book?</label>
-        <p style="font-size:.85rem;color:var(--muted);margin-bottom:8px;">The AI detected 1 chapter, but if that's wrong, enter the correct number:</p>
+        <p id="ch-detected-note" style="font-size:.85rem;color:var(--muted);margin-bottom:8px;">The AI detected the chapter count below — if it's wrong, enter the correct number:</p>
         <input id="ch-total" type="number" min="1" value="1" style="width:100%;padding:12px;border:2px solid var(--border);border-radius:12px;font-size:1rem;"/>
         <p style="font-size:.75rem;color:var(--muted);margin-top:8px;">If you know the correct chapter count, type it above and press Enter</p>
       </div>
@@ -1519,13 +1519,19 @@ async function aiAddBook(){
   if(!key){ msg.style.color='var(--red)'; msg.textContent='Save your Anthropic API key first.'; return; }
   if(!abScreenshot){ msg.style.color='var(--red)'; msg.textContent='Upload a screenshot of the book cover.'; return; }
   if(!genre){ msg.style.color='var(--red)'; msg.textContent='Select a genre.'; return; }
-  msg.style.color='var(--muted)'; msg.textContent='📷 Recognizing the book from your screenshot… (10–30s)';
+  msg.style.color='var(--muted)'; msg.textContent='📷 Identifying the book from your screenshot… (5–15s)';
   document.getElementById('ab-generate-btn').disabled=true;
   try{
-    const data=await callClaudeForAddBook(key, abScreenshot, genre);
+    // Step 1 — identify the exact published book (focused, accurate).
+    const id=await callClaudeToIdentifyBook(key, abScreenshot);
+    const lowConf = (id.confidence||'').toLowerCase()==='low';
+    msg.style.color='var(--muted)';
+    msg.textContent=`📖 Found “${id.title}” by ${id.author} (${id.chapters} chapters${lowConf?', count unverified':''}). Generating questions… (10–30s)`;
+    // Step 2 — generate questions for the CONFIRMED book.
+    const data=await callClaudeForAddBook(key, genre, id);
     const mcN=data.questions.length, oeN=data.oeBank.length;
     const book={ title:data.title, author:data.author, genre:genre, custom:true, ai:true,
-      chapters:data.chapters, chapterRead:data.chapterRead,
+      chapters:data.chapters, chapterRead:data.chapterRead, lowChapterConfidence:lowConf,
       questions:data.questions, oeBank:data.oeBank };
     APP.customBooks=APP.customBooks||[]; APP.customBooks.push(book); saveState();
     msg.style.color='var(--green-dark)';
@@ -1540,8 +1546,73 @@ async function aiAddBook(){
   }
 }
 
-// ---------- AI Add Book (recognize from screenshot + generate 10 questions) ----------
-async function callClaudeForAddBook(key, imageBase64, selectedGenre){
+// ---------- Step 1: Identify the exact published book from the cover image ----------
+async function callClaudeToIdentifyBook(key, imageBase64){
+  const prompt=`You are a librarian identifying ONE specific published book from its cover image.
+
+Do this carefully:
+1. Read every visible word of the title and author from the cover.
+2. Determine which ACTUAL published book this is. Use the canonical, full title and the complete author name(s) exactly as published — correct any OCR misreads from the cover (e.g. a smudged surname). If the book has multiple authors, include all of them.
+3. Find the EXACT total number of chapters in that real book. If you are not certain of the published chapter count from memory, USE THE web_search TOOL to look it up (e.g. search "<title> <author> number of chapters"). Prefer a count you can verify over a guess.
+4. Judge your certainty about the chapter count AFTER searching: "high" if you verified it or genuinely know it, "low" if you still are not sure.
+
+Rules:
+- Commit to the single most likely real book. Do not blend two books or invent an author.
+- If you truly cannot identify the book, return your best single guess and set confidence to "low".
+- chapters must be a positive integer. Never return 1 as a filler — if unsure, give your best real estimate and set confidence to "low".
+
+When you are done, your FINAL message must be ONLY a valid JSON object (no markdown, no commentary) of the form:
+{"title": "...", "author": "...", "chapters": 41, "confidence": "high"}`;
+
+  const messages=[{
+    role:'user',
+    content:[
+      { type:'image', source:{ type:'base64', media_type:'image/jpeg', data:imageBase64 } },
+      { type:'text', text:prompt }
+    ]
+  }];
+  const baseBody={
+    model:'claude-opus-4-8',
+    max_tokens:1500,
+    tools:[{ type:'web_search_20260209', name:'web_search', max_uses:3 }],
+    messages
+  };
+
+  let json=null;
+  // Server-side web search can pause (pause_turn) when it hits its iteration
+  // budget — re-send with the assistant turn appended to let it continue.
+  for(let attempt=0; attempt<4; attempt++){
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{ 'content-type':'application/json', 'x-api-key':key,
+        'anthropic-version':'2023-06-01', 'anthropic-dangerous-direct-browser-access':'true' },
+      body:JSON.stringify({ ...baseBody, messages })
+    });
+    if(!resp.ok){ const t=await resp.text(); throw new Error('API error '+resp.status+'. '+t.slice(0,140)); }
+    json=await resp.json();
+    if(json.stop_reason==='refusal') throw new Error('the request was declined.');
+    if(json.stop_reason==='pause_turn'){ messages.push({ role:'assistant', content:json.content }); continue; }
+    break;
+  }
+
+  // The final JSON is in the last text block that contains an object.
+  const texts=(json.content||[]).filter(b=>b.type==='text' && b.text);
+  let d=null;
+  for(let i=texts.length-1; i>=0 && !d; i--){
+    if(texts[i].text.indexOf('{')>=0){ try{ d=parseJSONLoose(texts[i].text); }catch{} }
+  }
+  if(!d) throw new Error('could not identify the book.');
+  const ch=parseInt(d.chapters,10);
+  return {
+    title:(d.title||'Unknown Book').trim(),
+    author:(d.author||'Unknown Author').trim(),
+    chapters:(ch && ch>0)?ch:1,
+    confidence:String(d.confidence||'low').toLowerCase()
+  };
+}
+
+// ---------- Step 2: Generate 10 questions for the already-identified book ----------
+async function callClaudeForAddBook(key, selectedGenre, idInfo){
   const gradeCfg=GRADE_CFG[APP.grade]||GRADE_CFG['2-3'];
   let mcTarget=10, oeTarget=0;
   if(APP.grade==='2-3'){ mcTarget=8; oeTarget=2; }
@@ -1549,36 +1620,28 @@ async function callClaudeForAddBook(key, imageBase64, selectedGenre){
   else if(APP.grade==='6+'){ mcTarget=4; oeTarget=6; }
 
   const diffs=gradeCfg.diffs;
-  const genres=genreList().join(', ');
-  const prompt=`You are examining a book cover image and will generate exactly 10 comprehension questions for it.
+  const totalCh=idInfo.chapters;
+  const prompt=`Write reading-comprehension questions for this specific, already-identified book:
+- Title: "${idInfo.title}"
+- Author: ${idInfo.author}
+- Total chapters: ${totalCh}
 
-CRITICAL - Book Identification:
-1. READ the book title and author clearly from the cover image - extract EVERY visible word
-2. Use your FULL knowledge to look up the EXACT total number of chapters in this specific book
-3. The chapter count is CRITICAL - verify you have the correct edition and chapter count
-4. Return the REAL title, author, and ACCURATE chapter count - do NOT guess or estimate
+The book has already been identified — do NOT change the title, author, or chapter count. Use them exactly as given.
 
-For chapter count: If you're unsure, give your best estimate based on the book edition shown on the cover. The user needs the correct chapter count to take the right quiz.
+Write exactly ${mcTarget} multiple-choice questions and ${oeTarget} explain-your-thinking questions for this book.
 
-Then, write exactly ${mcTarget} multiple-choice questions and ${oeTarget} explain-your-thinking questions for this book.
+Multiple-choice: Each has exactly 4 options. "answer" is the 0-based index (0, 1, 2, or 3) of the correct option. Set "topic" to Plot, Characters, Setting, Theme, or Vocabulary. Set "diff" to one of these: ${diffs.join(', ')}. IMPORTANT: Set "chapter" to the chapter number (1 to ${totalCh}) that this question covers.
 
-Multiple-choice: Each has exactly 4 options. "answer" is the 0-based index (0, 1, 2, or 3) of the correct option. Set "topic" to Plot, Characters, Setting, Theme, or Vocabulary. Set "diff" to one of these: ${diffs.join(', ')}. IMPORTANT: Set "chapter" to the chapter number (1 to total chapters) that this question covers.
+Explain-your-thinking: For each, provide 5+ lowercase "keywords" that a correct answer MUST contain (each answer must be at least one full sentence and include ALL these keywords). Also provide a one-sentence "model" answer showing the minimum acceptable response. IMPORTANT: Set "chapter" to the chapter number (1 to ${totalCh}) that this question covers.
 
-Explain-your-thinking: For each, provide 5+ lowercase "keywords" that a correct answer MUST contain (each answer must be at least one full sentence and include ALL these keywords). Also provide a one-sentence "model" answer showing the minimum acceptable response. IMPORTANT: Set "chapter" to the chapter number (1 to total chapters) that this question covers.
-
+Spread the questions across the book's chapters so a reader who read any part has coverage.
 All questions should be roughly the same difficulty level based on grade ${APP.grade}.
-Return ONLY a valid JSON object (no markdown, no explanation).`;
+Return ONLY a valid JSON object (no markdown, no explanation) with keys "mc" and "oe".`;
 
   const body={
     model:'claude-opus-4-8',
     max_tokens:4000,
-    messages:[{
-      role:'user',
-      content:[
-        { type:'image', source:{ type:'base64', media_type:'image/jpeg', data:imageBase64 } },
-        { type:'text', text:prompt }
-      ]
-    }]
+    messages:[{ role:'user', content:[{ type:'text', text:prompt }] }]
   };
 
   const resp=await fetch('https://api.anthropic.com/v1/messages',{
@@ -1594,10 +1657,10 @@ Return ONLY a valid JSON object (no markdown, no explanation).`;
   if(!tb||!tb.text) throw new Error('no questions came back.');
   const data=parseJSONLoose(tb.text);
   return {
-    title:data.title||'Unknown Book',
-    author:data.author||'Unknown Author',
-    chapters:data.chapters||1,
-    chapterRead:{start:1, end:data.chapters||1},
+    title:idInfo.title,
+    author:idInfo.author,
+    chapters:totalCh,
+    chapterRead:{start:1, end:totalCh},
     questions:(data.mc||[]).map(q=>({ q:q.q, options:q.options, answer:q.answer|0,
       topic:q.topic||'Plot', diff:String(q.diff||'M').toUpperCase().slice(0,1), chapter:q.chapter||1 })),
     oeBank:(data.oe||[]).map(o=>({ q:o.q, keywords:(o.keywords||[]).map(k=>String(k).toLowerCase()), model:o.model, chapter:o.chapter||1 }))
@@ -1788,6 +1851,12 @@ function goChapters(idx){
   document.getElementById('ch-title').textContent=`Select Chapters: “${b.title}”`;
   document.getElementById('ch-subtitle').textContent=`${b.author} · ${b.chapters} total chapter${b.chapters>1?'s':''}`;
   document.getElementById('ch-total').value=b.chapters;
+  const note=document.getElementById('ch-detected-note');
+  if(note){
+    note.textContent = b.lowChapterConfidence
+      ? `⚠️ The AI wasn't sure of the chapter count (guessed ${b.chapters}). Please confirm or correct it:`
+      : `The AI detected ${b.chapters} chapter${b.chapters>1?'s':''} — if that's wrong, enter the correct number:`;
+  }
   document.getElementById('ch-start').value=chRead.start;
   document.getElementById('ch-end').value=chRead.end;
   document.getElementById('ch-end').max=b.chapters;
