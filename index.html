@@ -234,6 +234,13 @@
       <p style="color:var(--muted);font-size:.85rem;" id="ch-subtitle"></p>
 
       <div style="margin:16px 0;">
+        <label style="display:block;font-weight:700;margin-bottom:8px;">⚠️ Total chapters in this book?</label>
+        <p style="font-size:.85rem;color:var(--muted);margin-bottom:8px;">The AI detected 1 chapter, but if that's wrong, enter the correct number:</p>
+        <input id="ch-total" type="number" min="1" value="1" style="width:100%;padding:12px;border:2px solid var(--border);border-radius:12px;font-size:1rem;"/>
+        <p style="font-size:.75rem;color:var(--muted);margin-top:8px;">If you know the correct chapter count, type it above and press Enter</p>
+      </div>
+
+      <div style="margin:16px 0;">
         <label style="display:block;font-weight:700;margin-bottom:8px;">📖 Which chapters did you read?</label>
         <div style="display:flex;gap:10px;margin-bottom:12px;">
           <div style="flex:1;">
@@ -1780,6 +1787,7 @@ function goChapters(idx){
   const chRead=b.chapterRead||{start:1, end:b.chapters};
   document.getElementById('ch-title').textContent=`Select Chapters: “${b.title}”`;
   document.getElementById('ch-subtitle').textContent=`${b.author} · ${b.chapters} total chapter${b.chapters>1?'s':''}`;
+  document.getElementById('ch-total').value=b.chapters;
   document.getElementById('ch-start').value=chRead.start;
   document.getElementById('ch-end').value=chRead.end;
   document.getElementById('ch-end').max=b.chapters;
@@ -1787,10 +1795,20 @@ function goChapters(idx){
   document.getElementById('ch-page-start').value='';
   document.getElementById('ch-page-end').value='';
   document.getElementById('ch-msg').textContent='';
+  document.getElementById('ch-total').onchange=updateTotalChapters;
   document.getElementById('ch-start').onchange=updateChapterLabel;
   document.getElementById('ch-end').onchange=updateChapterLabel;
   updateChapterLabel();
   show('chapters');
+}
+function updateTotalChapters(){
+  const total=parseInt(document.getElementById('ch-total').value)||1;
+  document.getElementById('ch-end').max=total;
+  document.getElementById('ch-start').max=total;
+  if(parseInt(document.getElementById('ch-end').value)>total){
+    document.getElementById('ch-end').value=total;
+  }
+  updateChapterLabel();
 }
 function updateChapterLabel(){
   const start=parseInt(document.getElementById('ch-start').value)||1;
@@ -1799,15 +1817,17 @@ function updateChapterLabel(){
 }
 function startChapterQuiz(){
   const b=allBooks()[selectedBookIdx];
+  const totalChapters=parseInt(document.getElementById('ch-total').value)||b.chapters;
   const start=parseInt(document.getElementById('ch-start').value)||1;
   const end=parseInt(document.getElementById('ch-end').value)||1;
   const msg=document.getElementById('ch-msg');
-  if(start<1 || end<start || end>b.chapters){ msg.style.color='var(--red)'; msg.textContent='Invalid chapter range.'; return; }
+  if(start<1 || end<start || end>totalChapters){ msg.style.color='var(--red)'; msg.textContent='Invalid chapter range.'; return; }
+  b.chapters=totalChapters;
   b.chapterRead={start, end};
   saveState();
   const quizQuestions=buildQuizItemsWithChapters(b, start, end);
   if(quizQuestions.length<10){ msg.style.color='var(--red)'; msg.textContent='Not enough questions in selected chapters (need at least 10).'; return; }
-  quiz={ book:b.title, author:b.author, genre:b.genre, chapters:{total:b.chapters, selected:{start,end}}, questions:quizQuestions, current:0, answers:[], selected:null, checked:false, startTime:0 };
+  quiz={ book:b.title, author:b.author, genre:b.genre, chapters:{total:totalChapters, selected:{start,end}}, questions:quizQuestions, current:0, answers:[], selected:null, checked:false, startTime:0 };
   document.getElementById('skim-sub').textContent=`”${b.title}” by ${b.author}`;
   show('skim');
   setTimeout(()=>{ quiz.startTime=Date.now(); renderQuestion(); show('quiz'); }, 1800);
