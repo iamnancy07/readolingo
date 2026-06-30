@@ -1546,11 +1546,12 @@ async function callClaudeForAddBook(key, imageBase64, selectedGenre){
   const prompt=`You are examining a book cover image and will generate exactly 10 comprehension questions for it.
 
 CRITICAL - Book Identification:
-1. READ the book title and author clearly from the cover image
-2. Use your knowledge to determine the ACTUAL total number of chapters in this real book
-3. Return the REAL title, author, and chapter count - NOT "Unknown"
+1. READ the book title and author clearly from the cover image - extract EVERY visible word
+2. Use your FULL knowledge to look up the EXACT total number of chapters in this specific book
+3. The chapter count is CRITICAL - verify you have the correct edition and chapter count
+4. Return the REAL title, author, and ACCURATE chapter count - do NOT guess or estimate
 
-If the cover text is hard to read, do your best to read every visible letter and word. This information MUST be accurate.
+For chapter count: If you're unsure, give your best estimate based on the book edition shown on the cover. The user needs the correct chapter count to take the right quiz.
 
 Then, write exactly ${mcTarget} multiple-choice questions and ${oeTarget} explain-your-thinking questions for this book.
 
