@@ -255,22 +255,8 @@
         <p style="font-size:.8rem;color:var(--muted);margin-bottom:12px;" id="ch-range-label"></p>
       </div>
 
-      <div style="margin:16px 0;">
-        <label style="display:block;font-weight:700;margin-bottom:8px;">📄 Or specify pages (optional)</label>
-        <div style="display:flex;gap:10px;">
-          <div style="flex:1;">
-            <label style="font-size:.85rem;color:var(--muted);">Start page</label>
-            <input id="ch-page-start" type="number" min="1" placeholder="1" style="width:100%;"/>
-          </div>
-          <div style="flex:1;">
-            <label style="font-size:.85rem;color:var(--muted);">End page</label>
-            <input id="ch-page-end" type="number" min="1" placeholder="10" style="width:100%;"/>
-          </div>
-        </div>
-      </div>
-
       <p id="ch-msg" class="note" style="min-height:1em;"></p>
-      <button class="btn" onclick="startChapterQuiz()">📚 Start Quiz</button>
+      <button class="btn" id="ch-start-btn" onclick="startChapterQuiz()">📚 Start Quiz</button>
       <button class="btn ghost" onclick="goBooks(currentGenreForChapter)">Cancel</button>
     </div>
   </section>
@@ -1667,6 +1653,65 @@ Return ONLY a valid JSON object (no markdown, no explanation) with keys "mc" and
   };
 }
 
+// ---------- On-demand: generate a fresh quiz for the SELECTED chapter range ----------
+// 5 single-select + 5 explain-your-thinking, difficulty tuned to the grade.
+const GRADE_DIFF_GUIDE = {
+  "2-3": "Grade 2-3 (ages 7-9). Keep questions EASY: literal recall, simple vocabulary, short sentences. Mostly 'what happened' and 'who did what'.",
+  "4-5": "Grade 4-5 (ages 9-11). MEDIUM difficulty: a mix of recall and light inference, cause-and-effect, character motivation, and some vocabulary in context.",
+  "6+":  "Grade 6+ (ages 11+). HARDER: inference, theme, author's purpose, analysis, and richer vocabulary. Avoid pure recall."
+};
+async function callClaudeToGenerateChapterQuiz(key, b, start, end){
+  const grade=APP.grade||'2-3';
+  const guide=GRADE_DIFF_GUIDE[grade]||GRADE_DIFF_GUIDE['2-3'];
+  const diffs=(GRADE_CFG[grade]||GRADE_CFG['2-3']).diffs;
+  const range = start===end ? `chapter ${start}` : `chapters ${start} to ${end}`;
+  const prompt=`Write reading-comprehension questions about the book "${b.title}" by ${b.author}.
+
+Cover ONLY ${range} of the book (out of ${b.chapters} total chapters). Every question must be answerable from those chapters and must NOT reveal events from later chapters.
+
+If you are not certain what happens in ${range} of this book, do AT MOST 2 web searches to find a plot/chapter summary (e.g. "${b.title} ${b.author} chapter summary" or "${b.title} plot summary"), then STOP searching and write the questions from what you found. Do NOT keep searching, do NOT ask the user for the text, and do NOT refuse — after your searches, immediately produce the questions even if your information is only a general summary of the early part of the book.
+
+Difficulty: ${guide}
+
+Write EXACTLY 5 multiple-choice questions and EXACTLY 5 explain-your-thinking questions.
+
+Multiple-choice: each has exactly 4 options. "answer" is the 0-based index (0,1,2,3) of the correct option. Set "topic" to Plot, Characters, Setting, Theme, or Vocabulary. Set "diff" to one of: ${diffs.join(', ')}. Set "chapter" to the chapter number (between ${start} and ${end}) the question covers.
+
+Explain-your-thinking: for each, provide 5+ lowercase "keywords" that a correct answer MUST contain (the answer is at least one full sentence including ALL keywords), and a one-sentence "model" answer. Set "chapter" to the chapter number (between ${start} and ${end}).
+
+Spread the questions across ${range}. When done, your FINAL message must be ONLY a valid JSON object (no markdown, no commentary) with keys "mc" and "oe".`;
+
+  const messages=[{ role:'user', content:[{ type:'text', text:prompt }] }];
+  const baseBody={ model:'claude-opus-4-8', max_tokens:5000,
+    tools:[{ type:'web_search_20260209', name:'web_search', max_uses:2 }] };
+  let json=null;
+  for(let attempt=0; attempt<3; attempt++){
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{ 'content-type':'application/json', 'x-api-key':key,
+        'anthropic-version':'2023-06-01', 'anthropic-dangerous-direct-browser-access':'true' },
+      body:JSON.stringify({ ...baseBody, messages })
+    });
+    if(!resp.ok){ const t=await resp.text(); throw new Error('API error '+resp.status+'. '+t.slice(0,140)); }
+    json=await resp.json();
+    if(json.stop_reason==='refusal') throw new Error('the request was declined.');
+    if(json.stop_reason==='pause_turn'){ messages.push({ role:'assistant', content:json.content }); continue; }
+    break;
+  }
+  const texts=(json.content||[]).filter(x=>x.type==='text' && x.text);
+  let data=null;
+  for(let i=texts.length-1; i>=0 && !data; i--){
+    if(texts[i].text.indexOf('{')>=0){ try{ data=parseJSONLoose(texts[i].text); }catch{} }
+  }
+  if(!data) throw new Error('no questions came back.');
+  const mc=(data.mc||[]).filter(q=>q&&q.q&&Array.isArray(q.options)&&q.options.length>=2)
+    .map(q=>({ type:'mc', q:q.q, options:q.options, answer:q.answer|0,
+      topic:q.topic||'Plot', diff:String(q.diff||'M').toUpperCase().slice(0,1), chapter:q.chapter||start }));
+  const oe=(data.oe||[]).filter(o=>o&&o.q)
+    .map(o=>({ type:'oe', q:o.q, keywords:(o.keywords||[]).map(k=>String(k).toLowerCase()), model:o.model, topic:'Custom', chapter:o.chapter||start }));
+  return [...mc, ...oe];
+}
+
 const ADD_BOOK_SCHEMA = {
   type:"object",
   required:["title","author","chapters","mc","oe"],
@@ -1861,8 +1906,6 @@ function goChapters(idx){
   document.getElementById('ch-end').value=chRead.end;
   document.getElementById('ch-end').max=b.chapters;
   document.getElementById('ch-start').max=b.chapters;
-  document.getElementById('ch-page-start').value='';
-  document.getElementById('ch-page-end').value='';
   document.getElementById('ch-msg').textContent='';
   document.getElementById('ch-total').onchange=updateTotalChapters;
   document.getElementById('ch-start').onchange=updateChapterLabel;
@@ -1884,18 +1927,45 @@ function updateChapterLabel(){
   const end=parseInt(document.getElementById('ch-end').value)||1;
   document.getElementById('ch-range-label').textContent=`You selected chapters ${start} to ${end}`;
 }
-function startChapterQuiz(){
+async function startChapterQuiz(){
   const b=allBooks()[selectedBookIdx];
   const totalChapters=parseInt(document.getElementById('ch-total').value)||b.chapters;
   const start=parseInt(document.getElementById('ch-start').value)||1;
   const end=parseInt(document.getElementById('ch-end').value)||1;
   const msg=document.getElementById('ch-msg');
+  const btn=document.getElementById('ch-start-btn');
   if(start<1 || end<start || end>totalChapters){ msg.style.color='var(--red)'; msg.textContent='Invalid chapter range.'; return; }
   b.chapters=totalChapters;
   b.chapterRead={start, end};
   saveState();
-  const quizQuestions=buildQuizItemsWithChapters(b, start, end);
-  if(quizQuestions.length<10){ msg.style.color='var(--red)'; msg.textContent='Not enough questions in selected chapters (need at least 10).'; return; }
+
+  let quizQuestions=null;
+  const key=(localStorage.getItem('readolingo_ab_apikey')||'').trim();
+  if(key){
+    // Generate fresh questions tuned to the selected chapter range + grade.
+    if(btn) btn.disabled=true;
+    msg.style.color='var(--muted)';
+    msg.textContent=`✨ Generating 10 questions for chapters ${start}–${end}… this can take up to a minute.`;
+    try{
+      quizQuestions=await callClaudeToGenerateChapterQuiz(key, b, start, end);
+    }catch(e){
+      // Fall back to any pre-generated questions in range, else surface the error.
+      const pool=buildQuizItemsWithChapters(b, start, end);
+      if(pool.length>=10){ quizQuestions=pool; }
+      else{ msg.style.color='var(--red)'; msg.textContent='Could not generate: '+(e&&e.message?e.message:e); if(btn) btn.disabled=false; return; }
+    }
+    if(btn) btn.disabled=false;
+  } else {
+    // No API key — use the filtered pre-generated pool.
+    quizQuestions=buildQuizItemsWithChapters(b, start, end);
+  }
+
+  if(!quizQuestions || quizQuestions.length<10){
+    msg.style.color='var(--red)';
+    msg.textContent='Not enough questions for the selected chapters. Try a wider range or save your API key on the Add Book screen.';
+    return;
+  }
+  msg.textContent='';
   quiz={ book:b.title, author:b.author, genre:b.genre, chapters:{total:totalChapters, selected:{start,end}}, questions:quizQuestions, current:0, answers:[], selected:null, checked:false, startTime:0 };
   document.getElementById('skim-sub').textContent=`”${b.title}” by ${b.author}`;
   show('skim');
