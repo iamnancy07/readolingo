@@ -1565,8 +1565,7 @@ Return ONLY a valid JSON object (no markdown, no explanation).`;
         { type:'image', source:{ type:'base64', media_type:'image/jpeg', data:imageBase64 } },
         { type:'text', text:prompt }
       ]
-    }],
-    output_config:{ format:{ type:'json_schema', schema:ADD_BOOK_SCHEMA } }
+    }]
   };
 
   const resp=await fetch('https://api.anthropic.com/v1/messages',{
