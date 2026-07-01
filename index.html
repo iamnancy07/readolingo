@@ -207,23 +207,14 @@
     </div>
   </section>
 
-  <!-- ===== GENRES ===== -->
+  <!-- ===== MY BOOKS ===== -->
   <section id="screen-genres" class="screen">
     <div class="card">
-      <h2>Pick a genre 🗂️</h2>
-      <div class="grid" id="genre-list"></div>
-      <button class="btn gold" onclick="goAddBook()">➕ Add Your Own Book</button>
-      <button class="btn secondary" onclick="goAI()">🤖 Generate a Book with AI</button>
+      <h2>📚 My Books</h2>
+      <p id="mybooks-empty" style="color:var(--muted);font-size:.9rem;"></p>
+      <div id="mybooks-list"></div>
+      <button class="btn gold" onclick="goAddBook()">➕ Add a Book</button>
       <button class="btn ghost" onclick="goHome()">Back</button>
-    </div>
-  </section>
-
-  <!-- ===== BOOKS ===== -->
-  <section id="screen-books" class="screen">
-    <div class="card">
-      <h2 id="books-title">Books</h2>
-      <div id="book-choices"></div>
-      <button class="btn ghost" onclick="goGenres()">Back</button>
     </div>
   </section>
 
@@ -257,31 +248,29 @@
 
       <p id="ch-msg" class="note" style="min-height:1em;"></p>
       <button class="btn" id="ch-start-btn" onclick="startChapterQuiz()">📚 Start Quiz</button>
-      <button class="btn ghost" onclick="goBooks(currentGenreForChapter)">Cancel</button>
+      <button class="btn ghost" onclick="goGenres()">Cancel</button>
     </div>
   </section>
 
-  <!-- ===== ADD A BOOK (AI-Powered) ===== -->
+  <!-- ===== ADD A BOOK (Search) ===== -->
   <section id="screen-addbook" class="screen">
-    <div class="card">
-      <h2>📷 Add a Book with AI</h2>
-      <p style="color:var(--muted);font-size:.85rem;">Take a screenshot of the book cover. Claude will recognize it, then generate 10 personalized questions based on your grade level.</p>
+    <div class="card" style="position:relative;padding-bottom:32px;">
+      <button class="btn ghost" style="position:absolute;top:14px;right:14px;width:auto;margin:0;padding:8px 12px;font-size:1.2rem;" onclick="showAbInstructions()">ℹ️</button>
+      <h2>🔎 Add a Book</h2>
+      <p style="color:var(--muted);font-size:.85rem;">Type a book name, pick it from the results, and it's saved to your library. Next time, just tap it from your shelf — no need to search again.</p>
     </div>
 
     <div class="card">
-      <label>Book cover screenshot</label>
-      <input id="ab-cover-upload" type="file" accept="image/*" />
-      <div id="ab-cover-preview" class="center" style="margin-top:12px;"></div>
-    </div>
-
-    <div class="card">
-      <label>Genre</label>
-      <select id="ab-genre"></select>
+      <label>Book name</label>
+      <input id="ab-search-input" placeholder="e.g. The Court of the Dead" />
+      <button class="btn gold" id="ab-search-btn" onclick="searchBooks()">🔎 Search</button>
+      <p id="ab-msg" class="note" style="min-height:1em;"></p>
+      <div id="ab-results"></div>
     </div>
 
     <div class="card">
       <h3>🔑 Anthropic API Key</h3>
-      <p style="color:var(--muted);font-size:.85rem;">Same as "Generate a Book with AI". Stored only here, never shared.</p>
+      <p style="color:var(--muted);font-size:.85rem;">Search uses your own Anthropic API key. Stored only here, never shared.</p>
       <label>Your Anthropic API key</label>
       <input id="ab-ai-key" type="password" placeholder="sk-ant-..." />
       <div class="btn-row">
@@ -292,18 +281,17 @@
     </div>
 
     <div class="card">
-      <p id="ab-msg" class="note" style="min-height:1em;"></p>
-      <button class="btn gold" id="ab-generate-btn" onclick="aiAddBook()">✨ Recognize & Generate 10 Questions</button>
       <button class="btn ghost" onclick="goGenres()">Cancel</button>
     </div>
   </section>
 
   <!-- ===== AI GENERATE ===== -->
-  <section id="screen-ai" class="screen">
-    <div class="card">
+  <section id=”screen-ai” class=”screen”>
+    <div class=”card” style=”position:relative;padding-bottom:32px;”>
+      <button class=”btn ghost” style=”position:absolute;top:14px;right:14px;width:auto;margin:0;padding:8px 12px;font-size:1.2rem;” onclick=”showAiInstructions()”>ℹ️</button>
       <h2>🤖 Generate a Book with AI</h2>
-      <p style="color:var(--muted);font-size:.85rem;">Type a book and its author. Claude writes quiz questions about it, adds it to your library, and starts the quiz.</p>
-      <div class="warn">🔒 This uses <b>your own Anthropic API key</b>. It's stored only in this browser on this device and sent only to Anthropic — Readolingo has no key of its own. Anyone using this device could read it, so don't use a shared computer and tap “Clear key” when done. Each generation is a small paid call on your key. Get a key at console.anthropic.com.</div>
+      <p style=”color:var(--muted);font-size:.85rem;”>Type a book and its author. Claude writes quiz questions about it, adds it to your library, and starts the quiz.</p>
+      <div class=”warn”>🔒 This uses <b>your own Anthropic API key</b>. It's stored only in this browser on this device and sent only to Anthropic — Readolingo has no key of its own. Anyone using this device could read it, so don't use a shared computer and tap “Clear key” when done. Each generation is a small paid call on your key. Get a key at console.anthropic.com.</div>
       <label>Your Anthropic API key</label>
       <input id="ai-key" type="password" placeholder="sk-ant-..." />
       <div class="btn-row">
@@ -440,6 +428,64 @@
       <button class="btn ghost" onclick="goHome()">Back</button>
     </div>
   </section>
+
+  <!-- ===== INSTRUCTION MODALS ===== -->
+  <div id="ab-instructions-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;padding:16px;overflow-y:auto;" onclick="if(event.target.id==='ab-instructions-modal') closeAbInstructions()">
+    <div style="max-width:500px;margin:40px auto;background:#fff;border-radius:16px;padding:24px;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <h2 style="margin:0;">📚 Add a Book Instructions</h2>
+        <button class="btn ghost" style="width:auto;margin:0;padding:8px 12px;font-size:1.2rem;" onclick="closeAbInstructions()">✕</button>
+      </div>
+      <div style="font-size:.95rem;line-height:1.8;color:var(--text);">
+        <h3 style="margin-top:14px;margin-bottom:8px;color:var(--green-dark);">📖 How to Add Books by Searching</h3>
+        <ol style="margin:0;padding-left:20px;color:var(--muted);">
+          <li style="margin-bottom:8px;">Enter your Anthropic API key (get one free at <b>console.anthropic.com</b>)</li>
+          <li style="margin-bottom:8px;">Tap "Save key" — it's stored locally on your device, never shared</li>
+          <li style="margin-bottom:8px;">Type a book name (e.g., "Harry Potter", "The Hobbit")</li>
+          <li style="margin-bottom:8px;">Tap "🔎 Search" — Claude finds real published books matching your search</li>
+          <li>Pick a book from the results to add it to your library</li>
+        </ol>
+        <h3 style="margin-top:16px;margin-bottom:8px;color:var(--green-dark);">💡 Tips</h3>
+        <ul style="margin:0;padding-left:20px;color:var(--muted);">
+          <li style="margin-bottom:8px;"><b>Be specific:</b> "Charlotte's Web by E.B. White" works better than just "Charlotte"</li>
+          <li style="margin-bottom:8px;"><b>Search takes time:</b> Give it up to a minute — Claude is searching for real books</li>
+          <li style="margin-bottom:8px;"><b>API costs:</b> Each search uses your API credits (usually a few cents)</li>
+          <li style="margin-bottom:8px;"><b>Save your key:</b> Clear it when done if you're on a shared device</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div id="ai-instructions-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;padding:16px;overflow-y:auto;" onclick="if(event.target.id==='ai-instructions-modal') closeAiInstructions()">
+    <div style="max-width:500px;margin:40px auto;background:#fff;border-radius:16px;padding:24px;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <h2 style="margin:0;">🤖 Generate a Book with AI Instructions</h2>
+        <button class="btn ghost" style="width:auto;margin:0;padding:8px 12px;font-size:1.2rem;" onclick="closeAiInstructions()">✕</button>
+      </div>
+      <div style="font-size:.95rem;line-height:1.8;color:var(--text);">
+        <h3 style="margin-top:14px;margin-bottom:8px;color:var(--green-dark);">✨ How to Generate Books</h3>
+        <ol style="margin:0;padding-left:20px;color:var(--muted);">
+          <li style="margin-bottom:8px;">Enter your Anthropic API key (get one free at <b>console.anthropic.com</b>)</li>
+          <li style="margin-bottom:8px;">Tap "Save key" — it's stored locally on your device, never shared</li>
+          <li style="margin-bottom:8px;">Enter the book title and author (e.g., "Matilda" by "Roald Dahl")</li>
+          <li style="margin-bottom:8px;">Tap "✨ Generate questions" — Claude creates 10+ quiz questions</li>
+          <li>The book and quiz start automatically</li>
+        </ol>
+        <h3 style="margin-top:16px;margin-bottom:8px;color:var(--green-dark);">🔒 Privacy & Security</h3>
+        <ul style="margin:0;padding-left:20px;color:var(--muted);">
+          <li style="margin-bottom:8px;"><b>Your key is private:</b> Only stored in your browser, never sent anywhere but Anthropic</li>
+          <li style="margin-bottom:8px;"><b>No account needed:</b> Readolingo doesn't store your data or have its own API key</li>
+          <li style="margin-bottom:8px;"><b>Clear key when done:</b> If you're on a shared device, tap "Clear key"</li>
+        </ul>
+        <h3 style="margin-top:16px;margin-bottom:8px;color:var(--green-dark);">💰 Cost</h3>
+        <ul style="margin:0;padding-left:20px;color:var(--muted);">
+          <li style="margin-bottom:8px;">Each generation costs a small amount from your Anthropic account (usually $0.05–$0.25)</li>
+          <li style="margin-bottom:8px;">Anthropic offers free credits to new accounts</li>
+          <li>You only pay for what you use</li>
+        </ul>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -1305,8 +1351,16 @@ function defaultState(){
 }
 let APP = loadState();
 function loadState(){
-  try{ const s=JSON.parse(localStorage.getItem('readolingo_state')); if(s) return Object.assign(defaultState(), s); }catch{}
+  try{ const s=JSON.parse(localStorage.getItem('readolingo_state')); if(s) return migrateState(Object.assign(defaultState(), s)); }catch{}
   return defaultState();
+}
+// One-time cleanup: an older Add-Book screen stored genres with stray smart
+// quotes (e.g. ”Fantasy”), stranding books on a broken shelf. Normalize them.
+function migrateState(st){
+  (st.customBooks||[]).forEach(b=>{
+    if(typeof b.genre==='string') b.genre=b.genre.replace(/[“”"']/g,'').trim();
+  });
+  return st;
 }
 function saveState(){ try{ localStorage.setItem('readolingo_state', JSON.stringify(APP)); }catch(e){ alert('Could not save — storage may be full (large cover photos?).'); } }
 
@@ -1322,7 +1376,7 @@ function show(name){
   window.scrollTo(0,0);
 }
 function goHome(){ renderHome(); show('home'); }
-function goGenres(){ renderGenres(); show('genres'); }
+function goGenres(){ renderMyBooks(); show('genres'); }
 function goShop(){ renderShop(); show('shop'); }
 function goCollection(){ renderCollection(); show('collection'); }
 function goUpgrade(){ renderUpgrade(); show('upgrade'); }
@@ -1426,41 +1480,133 @@ function renderHome(){
 function allBooks(){ return BOOKS.concat(APP.customBooks||[]); }
 function genreList(){ return [...new Set(allBooks().map(b=>b.genre))]; }
 const GENRE_ICONS={Fantasy:'🐉',Adventure:'🗺️',Animals:'🐾',Classics:'📜',Mystery:'🔍','Science Fiction':'🚀','Realistic Fiction':'🌟'};
-function renderGenres(){
-  document.getElementById('genre-list').innerHTML=genreList().map(g=>
-    `<div class="nav-tile" onclick="goBooks('${g.replace(/'/g,"\\'")}')"><span class="e">${GENRE_ICONS[g]||'📚'}</span>${g}</div>`).join('');
-}
-function goBooks(genre){
-  document.getElementById('books-title').textContent=(GENRE_ICONS[genre]||'📚')+' '+genre;
-  const list=allBooks();
-  const choices=list.filter(b=>b.genre===genre);
-  document.getElementById('book-choices').innerHTML=choices.map((b)=>{
-    const idx=list.indexOf(b);
+function renderMyBooks(){
+  const books=APP.customBooks||[];
+  const empty=document.getElementById('mybooks-empty');
+  const list=document.getElementById('mybooks-list');
+  if(!books.length){
+    empty.textContent='No books yet. Tap “➕ Add a Book” to search for a book and add it to your list.';
+    list.innerHTML=''; return;
+  }
+  empty.textContent='';
+  const all=allBooks();
+  list.innerHTML=books.map(b=>{
+    const idx=all.indexOf(b);
     const cover=b.cover?`<img src="${b.cover}" style="width:34px;height:46px;object-fit:cover;border-radius:6px;margin-right:10px;" />`:'';
-    const right=b.custom?`<span class="link" onclick="event.stopPropagation();deleteCustom(${idx})">🗑</span>`:'<span>▶️</span>';
-    return `<div class="row" onclick="startBook(${idx}, '${genre}')">
-      <div style="display:flex;align-items:center;">${cover}<div><div style="font-weight:700;">${escapeHtml(b.title)}${b.custom?'<span class="genre-pill">yours</span>':''}</div>
-      <div class="meta">${escapeHtml(b.author)}</div></div></div>${right}</div>`;
+    return `<div class="row" onclick="startBook(${idx})" style="cursor:pointer;">
+      <div style="display:flex;align-items:center;">${cover}<div><div style="font-weight:700;">${escapeHtml(b.title)}</div>
+      <div class="meta">${escapeHtml(b.author)} · ${b.chapters} chapter${b.chapters===1?'':'s'}</div></div></div>
+      <span class="link" style="color:var(--red);white-space:nowrap;" onclick="event.stopPropagation();deleteCustom(${idx})">🗑 Remove</span></div>`;
   }).join('');
-  show('books');
 }
 function deleteCustom(idx){
   const b=allBooks()[idx]; if(!b||!b.custom) return;
-  if(!confirm('Delete “'+b.title+'” from your library?')) return;
+  if(!confirm('Delete “'+b.title+'” from your list?')) return;
   const ci=(APP.customBooks||[]).indexOf(b);
-  if(ci>=0){ APP.customBooks.splice(ci,1); saveState(); goBooks(b.genre); }
+  if(ci>=0){ APP.customBooks.splice(ci,1); saveState(); goGenres(); }
 }
 
 // ---------- Add Book with AI (screenshot recognition + question generation) ----------
 function val(id){ return document.getElementById(id).value.trim(); }
 function goAddBook(){
-  ['ab-cover-upload','ab-ai-key'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('ab-cover-preview').innerHTML='';
+  document.getElementById('ab-search-input').value='';
+  document.getElementById('ab-results').innerHTML='';
   document.getElementById('ab-msg').textContent='';
-  document.getElementById('ab-genre').innerHTML=genreList().map(g=>`<option value=”${g}”>${escapeHtml(g)}</option>`).join('');
-  document.getElementById('ab-cover-upload').onchange=handleAbCover;
+  abSearchResults=[];
   updateAbKeyStatus();
   show('addbook');
+}
+function showAbInstructions(){ document.getElementById('ab-instructions-modal').style.display='block'; }
+function closeAbInstructions(){ document.getElementById('ab-instructions-modal').style.display='none'; }
+
+// ---------- Add a Book by searching (type name → pick from results) ----------
+let abSearchResults=[];
+async function searchBooks(){
+  const key=(localStorage.getItem('readolingo_ab_apikey')||'').trim();
+  const q=document.getElementById('ab-search-input').value.trim();
+  const msg=document.getElementById('ab-msg');
+  const btn=document.getElementById('ab-search-btn');
+  if(!key){ msg.style.color='var(--red)'; msg.textContent='Save your Anthropic API key first.'; return; }
+  if(!q){ msg.style.color='var(--red)'; msg.textContent='Type a book name to search.'; return; }
+  abSearchResults=[]; document.getElementById('ab-results').innerHTML='';
+  btn.disabled=true; msg.style.color='var(--muted)'; msg.textContent='🔎 Searching… this can take up to a minute.';
+  try{
+    abSearchResults=await callClaudeToSearchBooks(key, q);
+    if(!abSearchResults.length){ msg.style.color='var(--red)'; msg.textContent='No matching books found. Try a different name.'; }
+    else{ msg.style.color='var(--green-dark)'; msg.textContent=`Found ${abSearchResults.length} book${abSearchResults.length===1?'':'s'} — tap one to add it to your library.`; }
+    renderAbResults();
+  }catch(e){ msg.style.color='var(--red)'; msg.textContent='Search failed: '+(e&&e.message?e.message:e); }
+  finally{ btn.disabled=false; }
+}
+function renderAbResults(){
+  document.getElementById('ab-results').innerHTML=abSearchResults.map((b,i)=>`
+    <div class="row" onclick="addSearchedBook(${i})" style="cursor:pointer;margin-top:8px;">
+      <div><div style="font-weight:700;">${escapeHtml(b.title)}</div>
+      <div class="meta">${escapeHtml(b.author)} · ${b.chapters} chapter${b.chapters===1?'':'s'} · ${escapeHtml(b.genre)}</div></div>
+      <span>➕</span></div>`).join('');
+}
+function addSearchedBook(i){
+  const r=abSearchResults[i]; if(!r) return;
+  // Avoid duplicates (same title + author already in the list).
+  const exists=(APP.customBooks||[]).some(b=>b.title===r.title && b.author===r.author);
+  if(!exists){
+    const book={ title:r.title, author:r.author, genre:r.genre||'', custom:true, ai:true,
+      chapters:r.chapters, chapterRead:{start:1, end:r.chapters},
+      lowChapterConfidence:r.confidence!=='high', questions:[], oeBank:[] };
+    APP.customBooks=APP.customBooks||[]; APP.customBooks.push(book); saveState();
+  }
+  goGenres();
+}
+async function callClaudeToSearchBooks(key, query){
+  const genres=genreList();
+  const prompt=`A reader is searching for a book to add to a reading app. Their search text: "${query}".
+
+Find up to 5 REAL published books that match this search. FIRST use the web_search tool to search for the exact phrase "${query} book" (and "${query}" with the author if helpful) so you find the actual book the reader means — including recent releases. Do at most 3 searches total, then stop and answer.
+
+Ranking rules:
+- Put books whose TITLE matches "${query}" most closely FIRST (an exact title match is the best result and must be included if it exists).
+- Only include loose/partial matches after the close ones, and only if there is room.
+- Prefer the book the reader most likely means over merely popular books with similar words.
+
+For EACH book provide:
+- "title": the canonical full title
+- "author": the full author name(s) exactly as published
+- "chapters": the exact total number of chapters as a positive integer (your best value)
+- "confidence": "high" if you are sure of the chapter count, otherwise "low"
+- "genre": choose the single best fit from EXACTLY this list: ${genres.join(', ')}
+
+List the most likely match first. Do NOT invent books. When done, your FINAL message must be ONLY a valid JSON object (no markdown, no commentary): {"results":[{"title":"...","author":"...","chapters":41,"confidence":"high","genre":"Fantasy"}]}`;
+
+  const messages=[{ role:'user', content:[{ type:'text', text:prompt }] }];
+  const baseBody={ model:'claude-opus-4-8', max_tokens:2500,
+    tools:[{ type:'web_search_20260209', name:'web_search', max_uses:3 }] };
+  let json=null;
+  for(let attempt=0; attempt<4; attempt++){
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{ 'content-type':'application/json', 'x-api-key':key,
+        'anthropic-version':'2023-06-01', 'anthropic-dangerous-direct-browser-access':'true' },
+      body:JSON.stringify({ ...baseBody, messages })
+    });
+    if(!resp.ok){ const t=await resp.text(); throw new Error('API error '+resp.status+'. '+t.slice(0,140)); }
+    json=await resp.json();
+    if(json.stop_reason==='refusal') throw new Error('the request was declined.');
+    if(json.stop_reason==='pause_turn'){ messages.push({ role:'assistant', content:json.content }); continue; }
+    break;
+  }
+  const texts=(json.content||[]).filter(x=>x.type==='text' && x.text);
+  let data=null;
+  for(let i=texts.length-1; i>=0 && !data; i--){
+    if(texts[i].text.indexOf('{')>=0){ try{ data=parseJSONLoose(texts[i].text); }catch{} }
+  }
+  if(!data) throw new Error('could not read the search results.');
+  const arr=Array.isArray(data)?data:(data.results||data.books||[]);
+  return arr.filter(b=>b&&b.title&&b.author).map(b=>{
+    const ch=parseInt(b.chapters,10);
+    return { title:String(b.title).trim(), author:String(b.author).trim(),
+      chapters:(ch&&ch>0)?ch:1, confidence:String(b.confidence||'low').toLowerCase(),
+      genre:String(b.genre||genres[0]||'Adventure').trim() };
+  });
 }
 function handleAbCover(e){
   const file=e.target.files&&e.target.files[0]; if(!file) return;
@@ -1753,6 +1899,8 @@ function goAI(){
   st.style.color = has ? 'var(--green-dark)' : 'var(--muted)';
   show('ai');
 }
+function showAiInstructions(){ document.getElementById('ai-instructions-modal').style.display='block'; }
+function closeAiInstructions(){ document.getElementById('ai-instructions-modal').style.display='none'; }
 function saveApiKey(){
   const k=document.getElementById('ai-key').value.trim();
   const st=document.getElementById('ai-key-status');
