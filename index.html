@@ -254,12 +254,13 @@
 
   <!-- ===== ADD A BOOK (Search) ===== -->
   <section id="screen-addbook" class="screen">
-    <div class="card">
+    <div style="background:linear-gradient(135deg,#1cb0f6,#56ccf2);padding:20px;margin:-16px -16px 16px -16px;border-radius:0 0 20px 20px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-        <h2 style="margin:0;">🔎 Add a Book</h2>
+        <button style="background:rgba(255,255,255,0.2);color:#fff;border:none;border-radius:12px;width:40px;height:40px;font-size:1.4rem;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;" onclick="goGenres()">←</button>
+        <h1 style="margin:0;color:#fff;font-size:1.5rem;">🔎 Add a Book</h1>
         <button style="background:#1cb0f6;color:#fff;border:none;border-radius:20px;width:40px;height:40px;font-size:1.4rem;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;flex-shrink:0;" onclick="showAbInstructions()" title="View Instructions">ℹ️</button>
       </div>
-      <p style="color:var(--muted);font-size:.85rem;margin-top:0;">Type a book name, pick it from the results, and it's saved to your library. Next time, just tap it from your shelf — no need to search again.</p>
+      <p style="color:rgba(255,255,255,0.9);font-size:.9rem;margin:0;">Search for real published books and add them to your library</p>
     </div>
 
     <div class="card">
@@ -281,10 +282,6 @@
       </div>
       <button class="btn ghost" style="width:100%;margin-top:8px;" onclick="testAbApiKey()">🧪 Test key</button>
       <p id="ab-key-status" class="note"></p>
-    </div>
-
-    <div class="card">
-      <button class="btn ghost" onclick="goGenres()">Cancel</button>
     </div>
   </section>
 
