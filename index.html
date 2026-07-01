@@ -2010,12 +2010,34 @@ function parseJSONLoose(s){
 }
 async function callClaudeForQuestions(key, title, author){
   const genres=genreList().join(', ');
-  const prompt=`You are a children's reading-comprehension teacher. Write quiz questions about the book "${title}" by ${author}.
-Only ask about THIS specific book — plot, characters, setting, theme, and vocabulary.
-Difficulty tags: "E" = easy basic recall, "M" = medium plot detail, "H" = hard theme/inference.
-Write about 6 Easy, 5 Medium, and 5 Hard multiple-choice questions. Each has exactly 4 options, and "answer" is the 0-based index of the correct option. Use a "topic" of Plot, Characters, Setting, Theme, or Vocabulary.
-Also write 4 short "explain your thinking" questions; for each give 2-5 lowercase "keywords" a correct answer should contain, and a one-sentence "model" answer.
-Choose the best "genre" from this list: ${genres}.`;
+  const prompt=`You are a quiz master creating reading comprehension and critical thinking questions for a book learning app.
+
+**Book Details:**
+- Title: ${title}
+- Author: ${author}
+
+**Your task:** Generate 14-15 high-quality, diverse multiple-choice questions and 4 open-ended "explain your thinking" questions from this book.
+
+**Multiple-Choice Questions (14-15 total):**
+- Create ~6 Easy questions (plot details, character names, basic facts)
+- Create ~5 Medium questions (character motivations, themes, cause-and-effect)
+- Create ~3-4 Hard questions (symbolism, authorial intent, deeper analysis)
+- Each question should:
+  - Be clear, concise, and answerable by someone who's read the book
+  - Have exactly 4 multiple-choice options
+  - Have only one correct answer (indicate by index: 0, 1, 2, or 3)
+  - Include a "topic" field (e.g., "Plot", "Character", "Theme", "Setting")
+  - Include a "diff" field: "E" (Easy), "M" (Medium), or "H" (Hard)
+
+**Open-Ended Questions (4 total):**
+- Create 4 thought-provoking "explain your thinking" questions
+- Each question should encourage critical analysis and personal reflection
+- Include "keywords" array: 2-3 key words the reader should mention in their answer
+- Include "model" field: a brief 1-2 sentence model answer
+
+**Suggested Genres:** ${genres}
+
+**Return ONLY valid JSON (no markdown, no extra text).**`;
   const body={ model:'claude-opus-4-8', max_tokens:4000,
     messages:[{role:'user', content:prompt}],
     output_config:{ format:{ type:'json_schema', schema:AI_SCHEMA } } };
