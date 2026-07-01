@@ -1504,16 +1504,15 @@ function allBooks(){ return BOOKS.concat(APP.customBooks||[]); }
 function genreList(){ return [...new Set(allBooks().map(b=>b.genre))]; }
 const GENRE_ICONS={Fantasy:'🐉',Adventure:'🗺️',Animals:'🐾',Classics:'📜',Mystery:'🔍','Science Fiction':'🚀','Realistic Fiction':'🌟'};
 function renderMyBooks(){
-  const books=APP.customBooks||[];
+  const all=allBooks();
   const empty=document.getElementById('mybooks-empty');
   const list=document.getElementById('mybooks-list');
-  if(!books.length){
+  if(!all.length){
     empty.textContent='No books yet. Tap “➕ Add a Book” to search for a book and add it to your list.';
     list.innerHTML=''; return;
   }
   empty.textContent='';
-  const all=allBooks();
-  list.innerHTML=books.map(b=>{
+  list.innerHTML=all.map(b=>{
     const idx=all.indexOf(b);
     const cover=b.cover?`<img src="${b.cover}" style="width:34px;height:46px;object-fit:cover;border-radius:6px;margin-right:10px;" />`:'';
     return `<div class="row" onclick="startBook(${idx})" style="cursor:pointer;">
