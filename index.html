@@ -254,10 +254,12 @@
 
   <!-- ===== ADD A BOOK (Search) ===== -->
   <section id="screen-addbook" class="screen">
-    <div class="card" style="position:relative;padding-bottom:32px;">
-      <button class="btn ghost" style="position:absolute;top:14px;right:14px;width:auto;margin:0;padding:8px 12px;font-size:1.2rem;" onclick="showAbInstructions()">ℹ️</button>
-      <h2>🔎 Add a Book</h2>
-      <p style="color:var(--muted);font-size:.85rem;">Type a book name, pick it from the results, and it's saved to your library. Next time, just tap it from your shelf — no need to search again.</p>
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <h2 style="margin:0;">🔎 Add a Book</h2>
+        <button style="background:#1cb0f6;color:#fff;border:none;border-radius:20px;width:40px;height:40px;font-size:1.4rem;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;flex-shrink:0;" onclick="showAbInstructions()" title="View Instructions">ℹ️</button>
+      </div>
+      <p style="color:var(--muted);font-size:.85rem;margin-top:0;">Type a book name, pick it from the results, and it's saved to your library. Next time, just tap it from your shelf — no need to search again.</p>
     </div>
 
     <div class="card">
@@ -270,13 +272,14 @@
 
     <div class="card">
       <h3>🔑 Anthropic API Key</h3>
-      <p style="color:var(--muted);font-size:.85rem;">Search uses your own Anthropic API key. Stored only here, never shared.</p>
+      <p style="color:var(--muted);font-size:.85rem;">Search uses your own Anthropic API key. Get one free at <b>console.anthropic.com</b>. It's stored only here on this device, never shared with Readolingo.</p>
       <label>Your Anthropic API key</label>
       <input id="ab-ai-key" type="password" placeholder="sk-ant-..." />
       <div class="btn-row">
         <button class="btn secondary" onclick="saveAbApiKey()">Save key</button>
         <button class="btn ghost" onclick="clearAbApiKey()">Clear key</button>
       </div>
+      <button class="btn ghost" style="width:100%;margin-top:8px;" onclick="testAbApiKey()">🧪 Test key</button>
       <p id="ab-key-status" class="note"></p>
     </div>
 
@@ -287,10 +290,12 @@
 
   <!-- ===== AI GENERATE ===== -->
   <section id=”screen-ai” class=”screen”>
-    <div class=”card” style=”position:relative;padding-bottom:32px;”>
-      <button class=”btn ghost” style=”position:absolute;top:14px;right:14px;width:auto;margin:0;padding:8px 12px;font-size:1.2rem;” onclick=”showAiInstructions()”>ℹ️</button>
-      <h2>🤖 Generate a Book with AI</h2>
-      <p style=”color:var(--muted);font-size:.85rem;”>Type a book and its author. Claude writes quiz questions about it, adds it to your library, and starts the quiz.</p>
+    <div class=”card”>
+      <div style=”display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;”>
+        <h2 style=”margin:0;”>🤖 Generate a Book with AI</h2>
+        <button style=”background:#1cb0f6;color:#fff;border:none;border-radius:20px;width:40px;height:40px;font-size:1.4rem;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;flex-shrink:0;” onclick=”showAiInstructions()” title=”View Instructions”>ℹ️</button>
+      </div>
+      <p style=”color:var(--muted);font-size:.85rem;margin-top:0;”>Type a book and its author. Claude writes quiz questions about it, adds it to your library, and starts the quiz.</p>
       <div class=”warn”>🔒 This uses <b>your own Anthropic API key</b>. It's stored only in this browser on this device and sent only to Anthropic — Readolingo has no key of its own. Anyone using this device could read it, so don't use a shared computer and tap “Clear key” when done. Each generation is a small paid call on your key. Get a key at console.anthropic.com.</div>
       <label>Your Anthropic API key</label>
       <input id="ai-key" type="password" placeholder="sk-ant-..." />
@@ -1643,6 +1648,36 @@ function updateAbKeyStatus(){
   const st=document.getElementById('ab-key-status');
   st.textContent = has ? '✅ A key is saved on this device.' : 'No key saved yet.';
   st.style.color = has ? 'var(--green-dark)' : 'var(--muted)';
+}
+async function testAbApiKey(){
+  const key=(localStorage.getItem('readolingo_ab_apikey')||'').trim();
+  const st=document.getElementById('ab-key-status');
+  if(!key){ st.textContent='Save a key first to test it.'; st.style.color='var(--red)'; return; }
+  st.textContent='🧪 Testing API key…'; st.style.color='var(--muted)';
+  try{
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{ 'content-type':'application/json', 'x-api-key':key, 'anthropic-version':'2023-06-01', 'anthropic-dangerous-direct-browser-access':'true' },
+      body:JSON.stringify({ model:'claude-opus-4-8', max_tokens:100, messages:[{ role:'user', content:'Say "test successful" and nothing else.' }] })
+    });
+    if(!resp.ok){
+      const err=await resp.text();
+      st.textContent='❌ Key rejected by API. Check it\'s valid and has remaining credits.';
+      st.style.color='var(--red)';
+      return;
+    }
+    const data=await resp.json();
+    if(data.content && data.content.length > 0){
+      st.textContent='✅ API key works! You can now search for books.';
+      st.style.color='var(--green-dark)';
+    } else {
+      st.textContent='⚠️ API responded but no output. Try searching anyway.';
+      st.style.color='var(--blue)';
+    }
+  }catch(e){
+    st.textContent='❌ Network error. Check your internet connection.';
+    st.style.color='var(--red)';
+  }
 }
 async function aiAddBook(){
   const key=(localStorage.getItem('readolingo_ab_apikey')||'').trim();
