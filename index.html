@@ -213,7 +213,10 @@
       <h2>📚 My Books</h2>
       <p id="mybooks-empty" style="color:var(--muted);font-size:.9rem;"></p>
       <div id="mybooks-list"></div>
-      <button class="btn gold" onclick="goAddBook()">➕ Add a Book</button>
+      <div class="btn-row">
+        <button class="btn gold" onclick="goAddBook()">➕ Add a Book</button>
+        <button class="btn secondary" onclick="goAI()">🤖 Generate with AI</button>
+      </div>
       <button class="btn ghost" onclick="goHome()">Back</button>
     </div>
   </section>
@@ -287,29 +290,36 @@
 
   <!-- ===== AI GENERATE ===== -->
   <section id=”screen-ai” class=”screen”>
-    <div class=”card”>
+    <div style=”background:linear-gradient(135deg,#a78bfa,#c084fc);padding:20px;margin:-16px -16px 16px -16px;border-radius:0 0 20px 20px;”>
       <div style=”display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;”>
-        <h2 style=”margin:0;”>🤖 Generate a Book with AI</h2>
-        <button style=”background:#1cb0f6;color:#fff;border:none;border-radius:20px;width:40px;height:40px;font-size:1.4rem;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;flex-shrink:0;” onclick=”showAiInstructions()” title=”View Instructions”>ℹ️</button>
+        <button style=”background:rgba(255,255,255,0.2);color:#fff;border:none;border-radius:12px;width:40px;height:40px;font-size:1.4rem;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;” onclick=”goGenres()”>←</button>
+        <h1 style=”margin:0;color:#fff;font-size:1.5rem;”>🤖 Generate with AI</h1>
+        <button style=”background:#a78bfa;color:#fff;border:none;border-radius:20px;width:40px;height:40px;font-size:1.4rem;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;flex-shrink:0;” onclick=”showAiInstructions()” title=”View Instructions”>ℹ️</button>
       </div>
-      <p style=”color:var(--muted);font-size:.85rem;margin-top:0;”>Type a book and its author. Claude writes quiz questions about it, adds it to your library, and starts the quiz.</p>
-      <div class=”warn”>🔒 This uses <b>your own Anthropic API key</b>. It's stored only in this browser on this device and sent only to Anthropic — Readolingo has no key of its own. Anyone using this device could read it, so don't use a shared computer and tap “Clear key” when done. Each generation is a small paid call on your key. Get a key at console.anthropic.com.</div>
-      <label>Your Anthropic API key</label>
-      <input id="ai-key" type="password" placeholder="sk-ant-..." />
-      <div class="btn-row">
-        <button class="btn secondary" onclick="saveApiKey()">Save key</button>
-        <button class="btn ghost" onclick="clearApiKey()">Clear key</button>
-      </div>
-      <p id="ai-key-status" class="note"></p>
+      <p style=”color:rgba(255,255,255,0.9);font-size:.9rem;margin:0;”>Claude creates quiz questions for any book you type</p>
     </div>
-    <div class="card">
+
+    <div class=”card”>
       <label>Book title</label>
-      <input id="ai-title" placeholder="e.g. Matilda" />
+      <input id=”ai-title” placeholder=”e.g. Matilda” />
       <label>Author</label>
-      <input id="ai-author" placeholder="e.g. Roald Dahl" />
-      <button class="btn gold" id="ai-go" onclick="aiGenerate()">✨ Generate questions</button>
-      <p id="ai-msg" class="note" style="min-height:1em;"></p>
-      <button class="btn ghost" onclick="goGenres()">Back</button>
+      <input id=”ai-author” placeholder=”e.g. Roald Dahl” />
+      <button class=”btn gold” id=”ai-go” onclick=”aiGenerate()”>✨ Generate questions</button>
+      <p id=”ai-msg” class=”note” style=”min-height:1em;”></p>
+    </div>
+
+    <div class=”card”>
+      <h3>🔑 Anthropic API Key</h3>
+      <p style=”color:var(--muted);font-size:.85rem;”>Generation uses your own Anthropic API key. Get one free at <b>console.anthropic.com</b>. It's stored only here on this device, never shared with Readolingo.</p>
+      <div class=”warn”>🔒 This uses <b>your own Anthropic API key</b>. It's stored only in this browser on this device and sent only to Anthropic — Readolingo has no key of its own. Anyone using this device could read it, so don't use a shared computer and tap “Clear key” when done. Each generation is a small paid call on your key.</div>
+      <label>Your Anthropic API key</label>
+      <input id=”ai-key” type=”password” placeholder=”sk-ant-...” />
+      <div class=”btn-row”>
+        <button class=”btn secondary” onclick=”saveApiKey()”>Save key</button>
+        <button class=”btn ghost” onclick=”clearApiKey()”>Clear key</button>
+      </div>
+      <button class=”btn ghost” style=”width:100%;margin-top:8px;” onclick=”testAiApiKey()”>🧪 Test key</button>
+      <p id=”ai-key-status” class=”note”></p>
     </div>
   </section>
 
@@ -1961,6 +1971,36 @@ function saveApiKey(){
 function clearApiKey(){
   localStorage.removeItem('readolingo_apikey');
   const st=document.getElementById('ai-key-status'); st.textContent='Key cleared.'; st.style.color='var(--muted)';
+}
+async function testAiApiKey(){
+  const key=(localStorage.getItem('readolingo_apikey')||'').trim();
+  const st=document.getElementById('ai-key-status');
+  if(!key){ st.textContent='Save a key first to test it.'; st.style.color='var(--red)'; return; }
+  st.textContent='🧪 Testing API key…'; st.style.color='var(--muted)';
+  try{
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{ 'content-type':'application/json', 'x-api-key':key, 'anthropic-version':'2023-06-01', 'anthropic-dangerous-direct-browser-access':'true' },
+      body:JSON.stringify({ model:'claude-opus-4-8', max_tokens:100, messages:[{ role:'user', content:'Say "test successful" and nothing else.' }] })
+    });
+    if(!resp.ok){
+      const err=await resp.text();
+      st.textContent='❌ Key rejected by API. Check it\'s valid and has remaining credits.';
+      st.style.color='var(--red)';
+      return;
+    }
+    const data=await resp.json();
+    if(data.content && data.content.length > 0){
+      st.textContent='✅ API key works! You can now generate books.';
+      st.style.color='var(--green-dark)';
+    } else {
+      st.textContent='⚠️ API responded but no output. Try generating anyway.';
+      st.style.color='var(--blue)';
+    }
+  }catch(e){
+    st.textContent='❌ Network error. Check your internet connection.';
+    st.style.color='var(--red)';
+  }
 }
 function parseJSONLoose(s){
   try{ return JSON.parse(s); }catch{}
