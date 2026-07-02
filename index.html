@@ -289,37 +289,37 @@
   </section>
 
   <!-- ===== AI GENERATE ===== -->
-  <section id=”screen-ai” class=”screen”>
-    <div style=”background:linear-gradient(135deg,#a78bfa,#c084fc);padding:20px;margin:-16px -16px 16px -16px;border-radius:0 0 20px 20px;”>
-      <div style=”display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;”>
-        <button style=”background:rgba(255,255,255,0.2);color:#fff;border:none;border-radius:12px;width:40px;height:40px;font-size:1.4rem;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;” onclick=”goGenres()”>←</button>
-        <h1 style=”margin:0;color:#fff;font-size:1.5rem;”>🤖 Generate with AI</h1>
-        <button style=”background:#a78bfa;color:#fff;border:none;border-radius:20px;width:40px;height:40px;font-size:1.4rem;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;flex-shrink:0;” onclick=”showAiInstructions()” title=”View Instructions”>ℹ️</button>
+  <section id="screen-ai" class="screen">
+    <div style="background:linear-gradient(135deg,#a78bfa,#c084fc);padding:20px;margin:-16px -16px 16px -16px;border-radius:0 0 20px 20px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <button style="background:rgba(255,255,255,0.2);color:#fff;border:none;border-radius:12px;width:40px;height:40px;font-size:1.4rem;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;" onclick="goGenres()">←</button>
+        <h1 style="margin:0;color:#fff;font-size:1.5rem;">🤖 Generate with AI</h1>
+        <button style="background:#a78bfa;color:#fff;border:none;border-radius:20px;width:40px;height:40px;font-size:1.4rem;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;flex-shrink:0;" onclick="showAiInstructions()" title="View Instructions">ℹ️</button>
       </div>
-      <p style=”color:rgba(255,255,255,0.9);font-size:.9rem;margin:0;”>Claude creates quiz questions for any book you type</p>
+      <p style="color:rgba(255,255,255,0.9);font-size:.9rem;margin:0;">Claude creates quiz questions for any book you type</p>
     </div>
 
-    <div class=”card”>
+    <div class="card">
       <label>Book title</label>
-      <input id=”ai-title” placeholder=”e.g. Matilda” />
+      <input id="ai-title" placeholder="e.g. Matilda" />
       <label>Author</label>
-      <input id=”ai-author” placeholder=”e.g. Roald Dahl” />
-      <button class=”btn gold” id=”ai-go” onclick=”aiGenerate()”>✨ Generate questions</button>
-      <p id=”ai-msg” class=”note” style=”min-height:1em;”></p>
+      <input id="ai-author" placeholder="e.g. Roald Dahl" />
+      <button class="btn gold" id="ai-go" onclick="aiGenerate()">✨ Generate questions</button>
+      <p id="ai-msg" class="note" style="min-height:1em;"></p>
     </div>
 
-    <div class=”card”>
+    <div class="card">
       <h3>🔑 Anthropic API Key</h3>
-      <p style=”color:var(--muted);font-size:.85rem;”>Generation uses your own Anthropic API key. Get one free at <b>console.anthropic.com</b>. It's stored only here on this device, never shared with Readolingo.</p>
-      <div class=”warn”>🔒 This uses <b>your own Anthropic API key</b>. It's stored only in this browser on this device and sent only to Anthropic — Readolingo has no key of its own. Anyone using this device could read it, so don't use a shared computer and tap “Clear key” when done. Each generation is a small paid call on your key.</div>
+      <p style="color:var(--muted);font-size:.85rem;">Generation uses your own Anthropic API key. Get one free at console.anthropic.com. It is stored only here on this device, never shared with Readolingo.</p>
+      <div class="warn">🔒 This uses your own Anthropic API key. It is stored only in this browser on this device and sent only to Anthropic - Readolingo has no key of its own. Anyone using this device could read it, so do not use a shared computer and tap Clear key when done. Each generation is a small paid call on your key.</div>
       <label>Your Anthropic API key</label>
-      <input id=”ai-key” type=”password” placeholder=”sk-ant-...” />
-      <div class=”btn-row”>
-        <button class=”btn secondary” onclick=”saveApiKey()”>Save key</button>
-        <button class=”btn ghost” onclick=”clearApiKey()”>Clear key</button>
+      <input id="ai-key" type="password" placeholder="sk-ant-..." />
+      <div class="btn-row">
+        <button class="btn secondary" onclick="saveApiKey()">Save key</button>
+        <button class="btn ghost" onclick="clearApiKey()">Clear key</button>
       </div>
-      <button class=”btn ghost” style=”width:100%;margin-top:8px;” onclick=”testAiApiKey()”>🧪 Test key</button>
-      <p id=”ai-key-status” class=”note”></p>
+      <button class="btn ghost" style="width:100%;margin-top:8px;" onclick="testAiApiKey()">🧪 Test key</button>
+      <p id="ai-key-status" class="note"></p>
     </div>
   </section>
 
@@ -1648,7 +1648,7 @@ function handleAbCover(e){
       c.getContext('2d').drawImage(img,0,0,c.width,c.height);
       const dataUrl=c.toDataURL('image/jpeg',0.8);
       abScreenshot=dataUrl.split(',')[1];
-      document.getElementById('ab-cover-preview').innerHTML=`<img src=”${dataUrl}” style=”max-width:180px;border-radius:10px;margin:8px 0;” />`;
+      document.getElementById('ab-cover-preview').innerHTML=`<img src="${dataUrl}" style="max-width:180px;border-radius:10px;margin:8px 0;" />`;
     };
     img.src=ev.target.result;
   };
