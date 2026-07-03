@@ -33,7 +33,8 @@
   /* Trainer fire (flickers when earned) */
   @keyframes flameFlicker { 0%,100%{filter:brightness(1) saturate(1);} 50%{filter:brightness(1.18) saturate(1.25);} }
   .trainer.fire-on { animation: flameFlicker 1.3s ease-in-out infinite; }
-  header.brand { text-align: center; margin-bottom: 16px; }
+  header.brand { text-align: center; margin-bottom: 16px; position: relative; }
+  #settings-gear { position:absolute; top:0; right:0; background:none; border:none; font-size:1.3rem; cursor:pointer; padding:6px; line-height:1; }
   header.brand h1 { font-size: 2rem; color: var(--green-dark); letter-spacing: -1px; }
   header.brand p { color: var(--muted); font-size: .9rem; }
 
@@ -147,8 +148,9 @@
 <div id="bg-layer" aria-hidden="true"></div>
 <div class="app">
   <header class="brand">
-    <h1>📚 Readolingo</h1>
-    <p>Read it. Prove it. Level up.</p>
+    <button id="settings-gear" onclick="goSettings()" title="Settings">⚙️</button>
+    <h1 data-i18n="app_title">📚 Readolingo</h1>
+    <p data-i18n="app_tagline">Read it. Prove it. Level up.</p>
   </header>
 
   <!-- ===== WELCOME / GRADE SELECT ===== -->
@@ -189,20 +191,21 @@
     </div>
     <div class="card">
       <div class="grid">
-        <div class="nav-tile" onclick="goGenres()"><span class="e">📖</span>Read a Book</div>
-        <div class="nav-tile" onclick="goShop()"><span class="e">🛍️</span>Shop</div>
-        <div class="nav-tile" onclick="goCollection()"><span class="e">🎒</span>Collection</div>
-        <div class="nav-tile" onclick="goUpgrade()"><span class="e">⬆️</span>Upgrade Trainer</div>
-        <div class="nav-tile" onclick="goCalendar()"><span class="e">📅</span>Streak Calendar</div>
+        <div class="nav-tile" onclick="goGenres()"><span class="e">📖</span><span data-i18n="nav_read">Read a Book</span></div>
+        <div class="nav-tile" onclick="goShop()"><span class="e">🛍️</span><span data-i18n="nav_shop">Shop</span></div>
+        <div class="nav-tile" onclick="goCollection()"><span class="e">🎒</span><span data-i18n="nav_collection">Collection</span></div>
+        <div class="nav-tile" onclick="goUpgrade()"><span class="e">⬆️</span><span data-i18n="nav_upgrade">Upgrade Trainer</span></div>
+        <div class="nav-tile" onclick="goCalendar()"><span class="e">📅</span><span data-i18n="nav_calendar">Streak Calendar</span></div>
+        <div class="nav-tile" onclick="goSettings()"><span class="e">⚙️</span><span data-i18n="nav_settings">Settings</span></div>
       </div>
-      <button class="btn secondary" onclick="goReport()">📨 Send Today's Report</button>
+      <button class="btn secondary" onclick="goReport()" data-i18n="nav_send_report">📨 Send Today's Report</button>
     </div>
     <div class="card">
-      <h2>Your Books 📚</h2>
+      <h2 data-i18n="home_your_books">Your Books 📚</h2>
       <div id="book-list"></div>
     </div>
     <div class="card">
-      <h2>📊 Today's Average Score</h2>
+      <h2 data-i18n="home_today_avg">📊 Today's Average Score</h2>
       <div id="day-avg"></div>
     </div>
   </section>
@@ -359,6 +362,20 @@
     </div>
   </section>
 
+  <!-- ===== VOCAB CATCH ===== -->
+  <section id="screen-vocab" class="screen">
+    <div class="card">
+      <h2>🔤 Vocabulary Catch</h2>
+      <p class="note">Tap a clue, then tap its matching meaning!</p>
+      <div id="vocab-progress" class="note" style="font-weight:700;"></div>
+      <div id="vocab-clues" style="margin-top:8px;"></div>
+      <div style="height:8px;"></div>
+      <div id="vocab-defs"></div>
+      <div id="vocab-done" class="reward-banner" style="display:none;"></div>
+      <button class="btn ghost" style="margin-top:12px;" onclick="goHome()">Done</button>
+    </div>
+  </section>
+
   <!-- ===== SHOP ===== -->
   <section id="screen-shop" class="screen">
     <div class="wallet">
@@ -393,6 +410,8 @@
       <div class="skin-grid" id="coll-characters"></div>
       <h3 style="margin-top:14px;">Accessories <small style="color:var(--muted);font-weight:400;">(tap to equip, up to 3)</small></h3>
       <div class="skin-grid" id="coll-accessories"></div>
+      <h3 style="margin-top:14px;">🏅 Badges</h3>
+      <div class="skin-grid" id="coll-badges"></div>
       <button class="btn ghost" onclick="goHome()">Back</button>
     </div>
   </section>
@@ -423,6 +442,64 @@
       <button class="btn" onclick="emailReport()">📧 Open in Email to Send</button>
       <button class="btn ghost" onclick="goHome()">Back to Home</button>
     </div>
+  </section>
+
+  <!-- ===== SETTINGS ===== -->
+  <section id="screen-settings" class="screen">
+    <div style="background:linear-gradient(135deg,#8a94a6,#aab2c0);padding:20px;margin:-16px -16px 16px -16px;border-radius:0 0 20px 20px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <button style="background:rgba(255,255,255,0.2);color:#fff;border:none;border-radius:12px;width:40px;height:40px;font-size:1.4rem;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;" onclick="goHome()">←</button>
+        <h1 style="margin:0;color:#fff;font-size:1.5rem;" data-i18n="settings_title">⚙️ Settings</h1>
+        <div style="width:40px;"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 data-i18n="settings_profile">👤 Profile</h3>
+      <label data-i18n="settings_name_label">Your name</label>
+      <input id="set-name" placeholder="e.g. Mia" />
+      <label data-i18n="settings_grade_label">Grade level</label>
+      <select id="set-grade" style="width:100%;padding:12px;border:2px solid var(--border);border-radius:12px;font-size:1rem;">
+        <option value="2-3">Grade 2–3</option>
+        <option value="4-5">Grade 4–5</option>
+        <option value="6+">Grade 6 & up</option>
+      </select>
+      <button class="btn secondary" style="margin-top:10px;" onclick="saveProfileSettings()" data-i18n="settings_save_profile">Save profile</button>
+      <p id="settings-profile-msg" class="note"></p>
+    </div>
+
+    <div class="card">
+      <h3 data-i18n="settings_email">📨 Family / backup email</h3>
+      <p style="color:var(--muted);font-size:.85rem;" data-i18n="settings_email_desc">Used to pre-fill your daily report recipient and to label backups. Stored only on this device.</p>
+      <input id="set-email" placeholder="e.g. parent@email.com" />
+      <button class="btn secondary" style="margin-top:10px;" onclick="saveEmailSettings()" data-i18n="settings_save_email">Save email</button>
+      <p id="settings-email-msg" class="note"></p>
+    </div>
+
+    <div class="card">
+      <h3 data-i18n="settings_language">🌐 Language</h3>
+      <p style="color:var(--muted);font-size:.85rem;" data-i18n="settings_language_desc">Changes the app's interface language. Some quiz content may still appear in English until translated.</p>
+      <select id="set-language" style="width:100%;padding:12px;border:2px solid var(--border);border-radius:12px;font-size:1rem;" onchange="setLanguage(this.value)">
+        <option value="en">English</option>
+        <option value="es">Español</option>
+        <option value="fr">Français</option>
+        <option value="zh">中文</option>
+        <option value="ja">日本語</option>
+      </select>
+    </div>
+
+    <div class="card">
+      <h3 data-i18n="settings_data">💾 Your data</h3>
+      <p style="color:var(--muted);font-size:.85rem;" data-i18n="settings_data_desc">Back up your progress to a file, restore from a backup, or start fresh.</p>
+      <button class="btn secondary" style="width:100%;" onclick="exportBackup()" data-i18n="settings_export">⬇️ Export backup</button>
+      <label style="margin-top:10px;display:block;" data-i18n="settings_import_label">Restore from a backup file</label>
+      <input type="file" id="set-import-file" accept="application/json" onchange="importBackupFile(this)" />
+      <p id="settings-backup-msg" class="note"></p>
+      <div style="height:8px;"></div>
+      <button class="btn ghost" style="width:100%;border-color:var(--red);color:var(--red);" onclick="resetProgress()" data-i18n="settings_reset">🗑️ Reset progress (keeps name, grade & language)</button>
+    </div>
+
+    <button class="btn ghost" onclick="goHome()" data-i18n="common_back_home">Back to Home</button>
   </section>
 
   <!-- ===== STREAK CALENDAR ===== -->
@@ -526,32 +603,245 @@
    reshuffled every attempt so the test changes each time.
    ============================================================ */
 
+// ---------- i18n: UI chrome strings ----------
+const LANG_NAMES = { en:'English', es:'Spanish', fr:'French', zh:'Chinese (Simplified)', ja:'Japanese' };
+const STRINGS = {
+  en: {
+    app_title:'📚 Readolingo', app_tagline:'Read it. Prove it. Level up.',
+    nav_settings:'Settings', nav_read:'Read a Book', nav_shop:'Shop', nav_collection:'Collection',
+    nav_upgrade:'Upgrade Trainer', nav_calendar:'Streak Calendar', nav_send_report:"📨 Send Today's Report",
+    home_your_books:'Your Books 📚', home_today_avg:"📊 Today's Average Score",
+    settings_title:'⚙️ Settings', settings_profile:'👤 Profile', settings_name_label:'Your name',
+    settings_grade_label:'Grade level', settings_save_profile:'Save profile',
+    settings_email:'📨 Family / backup email',
+    settings_email_desc:"Used to pre-fill your daily report recipient and to label backups. Stored only on this device.",
+    settings_save_email:'Save email',
+    settings_language:'🌐 Language',
+    settings_language_desc:"Changes the app's interface language. Some quiz content may still appear in English until translated.",
+    settings_data:'💾 Your data',
+    settings_data_desc:'Back up your progress to a file, restore from a backup, or start fresh.',
+    settings_export:'⬇️ Export backup', settings_import_label:'Restore from a backup file',
+    settings_reset:'🗑️ Reset progress (keeps name, grade & language)',
+    common_back_home:'Back to Home',
+    settings_name_required:'Please enter a name.', settings_saved:'✅ Saved!',
+    settings_import_bad_json:'That file is not valid JSON.',
+    settings_import_bad_shape:'This does not look like a Readolingo backup file.',
+    settings_import_confirm:'Import will REPLACE all current progress on this device with the backup. Continue?',
+    settings_import_done:'✅ Backup imported!',
+    settings_reset_confirm:'This will erase all books, scores, stars, coins, diamonds, streaks, and badges. Your name, grade, and saved settings will be kept. This cannot be undone. Continue?',
+    topic_Plot:'Plot', topic_Characters:'Characters', topic_Setting:'Setting', topic_Theme:'Theme',
+    topic_Vocabulary:'Vocabulary', topic_Custom:'Custom',
+    quiz_question_count:'Question {n} of {total}',
+  },
+  es: {
+    app_title:'📚 Readolingo', app_tagline:'Léelo. Demuéstralo. Sube de nivel.',
+    nav_settings:'Ajustes', nav_read:'Leer un libro', nav_shop:'Tienda', nav_collection:'Colección',
+    nav_upgrade:'Mejorar entrenador', nav_calendar:'Calendario de racha', nav_send_report:'📨 Enviar el reporte de hoy',
+    home_your_books:'Tus libros 📚', home_today_avg:'📊 Promedio de hoy',
+    settings_title:'⚙️ Ajustes', settings_profile:'👤 Perfil', settings_name_label:'Tu nombre',
+    settings_grade_label:'Nivel de grado', settings_save_profile:'Guardar perfil',
+    settings_email:'📨 Correo familiar / de respaldo',
+    settings_email_desc:'Se usa para completar el destinatario del reporte diario y para identificar las copias de seguridad. Solo se guarda en este dispositivo.',
+    settings_save_email:'Guardar correo',
+    settings_language:'🌐 Idioma',
+    settings_language_desc:'Cambia el idioma de la interfaz de la app. Parte del contenido de los cuestionarios puede seguir apareciendo en inglés hasta traducirse.',
+    settings_data:'💾 Tus datos',
+    settings_data_desc:'Haz una copia de seguridad de tu progreso, restáurala, o empieza de nuevo.',
+    settings_export:'⬇️ Exportar copia de seguridad', settings_import_label:'Restaurar desde un archivo de copia de seguridad',
+    settings_reset:'🗑️ Reiniciar progreso (conserva nombre, grado e idioma)',
+    common_back_home:'Volver al inicio',
+    settings_name_required:'Por favor escribe un nombre.', settings_saved:'✅ ¡Guardado!',
+    settings_import_bad_json:'Ese archivo no es un JSON válido.',
+    settings_import_bad_shape:'Esto no parece ser un archivo de copia de seguridad de Readolingo.',
+    settings_import_confirm:'Importar REEMPLAZARÁ todo el progreso actual en este dispositivo con la copia de seguridad. ¿Continuar?',
+    settings_import_done:'✅ ¡Copia de seguridad importada!',
+    settings_reset_confirm:'Esto borrará todos los libros, puntajes, estrellas, monedas, diamantes, rachas e insignias. Se conservarán tu nombre, grado y ajustes guardados. Esta acción no se puede deshacer. ¿Continuar?',
+    topic_Plot:'Trama', topic_Characters:'Personajes', topic_Setting:'Ambientación', topic_Theme:'Tema',
+    topic_Vocabulary:'Vocabulario', topic_Custom:'Personalizado',
+    quiz_question_count:'Pregunta {n} de {total}',
+  },
+  fr: {
+    app_title:'📚 Readolingo', app_tagline:'Lis-le. Prouve-le. Monte de niveau.',
+    nav_settings:'Paramètres', nav_read:'Lire un livre', nav_shop:'Boutique', nav_collection:'Collection',
+    nav_upgrade:"Améliorer l'entraîneur", nav_calendar:'Calendrier de séries', nav_send_report:"📨 Envoyer le rapport du jour",
+    home_your_books:'Tes livres 📚', home_today_avg:"📊 Moyenne d'aujourd'hui",
+    settings_title:'⚙️ Paramètres', settings_profile:'👤 Profil', settings_name_label:'Ton prénom',
+    settings_grade_label:'Niveau scolaire', settings_save_profile:'Enregistrer le profil',
+    settings_email:'📨 E-mail familial / de sauvegarde',
+    settings_email_desc:"Utilisé pour pré-remplir le destinataire du rapport quotidien et pour identifier les sauvegardes. Conservé uniquement sur cet appareil.",
+    settings_save_email:"Enregistrer l'e-mail",
+    settings_language:'🌐 Langue',
+    settings_language_desc:"Change la langue de l'interface de l'application. Certains contenus de quiz peuvent encore apparaître en anglais tant qu'ils ne sont pas traduits.",
+    settings_data:'💾 Tes données',
+    settings_data_desc:'Sauvegarde ta progression dans un fichier, restaure une sauvegarde, ou recommence à zéro.',
+    settings_export:'⬇️ Exporter la sauvegarde', settings_import_label:'Restaurer depuis un fichier de sauvegarde',
+    settings_reset:'🗑️ Réinitialiser la progression (conserve nom, niveau et langue)',
+    common_back_home:"Retour à l'accueil",
+    settings_name_required:'Veuillez entrer un prénom.', settings_saved:'✅ Enregistré !',
+    settings_import_bad_json:"Ce fichier n'est pas un JSON valide.",
+    settings_import_bad_shape:'Ceci ne ressemble pas à un fichier de sauvegarde Readolingo.',
+    settings_import_confirm:"L'importation VA REMPLACER toute la progression actuelle sur cet appareil par la sauvegarde. Continuer ?",
+    settings_import_done:'✅ Sauvegarde importée !',
+    settings_reset_confirm:"Cela effacera tous les livres, scores, étoiles, pièces, diamants, séries et badges. Ton prénom, ton niveau et tes paramètres enregistrés seront conservés. Cette action est irréversible. Continuer ?",
+    topic_Plot:'Intrigue', topic_Characters:'Personnages', topic_Setting:'Décor', topic_Theme:'Thème',
+    topic_Vocabulary:'Vocabulaire', topic_Custom:'Personnalisé',
+    quiz_question_count:'Question {n} sur {total}',
+  },
+  zh: {
+    app_title:'📚 Readolingo', app_tagline:'读一读，证明它，升级吧。',
+    nav_settings:'设置', nav_read:'阅读一本书', nav_shop:'商店', nav_collection:'收藏',
+    nav_upgrade:'升级训练师', nav_calendar:'连胜日历', nav_send_report:'📨 发送今日报告',
+    home_your_books:'我的书籍 📚', home_today_avg:'📊 今日平均分',
+    settings_title:'⚙️ 设置', settings_profile:'👤 个人资料', settings_name_label:'你的名字',
+    settings_grade_label:'年级', settings_save_profile:'保存资料',
+    settings_email:'📨 家庭/备份邮箱',
+    settings_email_desc:'用于预填每日报告的收件人，并标记备份文件。仅保存在此设备上。',
+    settings_save_email:'保存邮箱',
+    settings_language:'🌐 语言',
+    settings_language_desc:'更改应用界面语言。部分测验内容在翻译完成前可能仍显示为英文。',
+    settings_data:'💾 我的数据',
+    settings_data_desc:'将你的进度备份为文件、从备份恢复，或重新开始。',
+    settings_export:'⬇️ 导出备份', settings_import_label:'从备份文件恢复',
+    settings_reset:'🗑️ 重置进度（保留姓名、年级和语言）',
+    common_back_home:'返回主页',
+    settings_name_required:'请输入姓名。', settings_saved:'✅ 已保存！',
+    settings_import_bad_json:'该文件不是有效的 JSON。',
+    settings_import_bad_shape:'这似乎不是 Readolingo 的备份文件。',
+    settings_import_confirm:'导入将用备份文件替换此设备上的所有当前进度。是否继续？',
+    settings_import_done:'✅ 备份已导入！',
+    settings_reset_confirm:'此操作将清除所有书籍、分数、星星、金币、钻石、连胜和徽章。你的姓名、年级和已保存的设置将被保留。此操作无法撤销。是否继续？',
+    topic_Plot:'情节', topic_Characters:'人物', topic_Setting:'背景', topic_Theme:'主题',
+    topic_Vocabulary:'词汇', topic_Custom:'自定义',
+    quiz_question_count:'第 {n} 题，共 {total} 题',
+  },
+  ja: {
+    app_title:'📚 Readolingo', app_tagline:'読んで、証明して、レベルアップ。',
+    nav_settings:'設定', nav_read:'本を読む', nav_shop:'ショップ', nav_collection:'コレクション',
+    nav_upgrade:'トレーナーを強化', nav_calendar:'連続記録カレンダー', nav_send_report:'📨 今日のレポートを送信',
+    home_your_books:'あなたの本 📚', home_today_avg:'📊 今日の平均スコア',
+    settings_title:'⚙️ 設定', settings_profile:'👤 プロフィール', settings_name_label:'名前',
+    settings_grade_label:'学年', settings_save_profile:'プロフィールを保存',
+    settings_email:'📨 家族/バックアップ用メール',
+    settings_email_desc:'毎日のレポートの宛先を自動入力し、バックアップに使用されます。この端末のみに保存されます。',
+    settings_save_email:'メールを保存',
+    settings_language:'🌐 言語',
+    settings_language_desc:'アプリの表示言語を変更します。一部のクイズ内容は翻訳されるまで英語で表示される場合があります。',
+    settings_data:'💾 データ',
+    settings_data_desc:'進捗をファイルにバックアップしたり、復元したり、最初からやり直したりできます。',
+    settings_export:'⬇️ バックアップを書き出す', settings_import_label:'バックアップファイルから復元',
+    settings_reset:'🗑️ 進捗をリセット（名前・学年・言語は保持）',
+    common_back_home:'ホームに戻る',
+    settings_name_required:'名前を入力してください。', settings_saved:'✅ 保存しました！',
+    settings_import_bad_json:'このファイルは有効なJSONではありません。',
+    settings_import_bad_shape:'Readolingoのバックアップファイルではないようです。',
+    settings_import_confirm:'インポートすると、この端末の現在の進捗がすべてバックアップの内容に置き換わります。続けますか？',
+    settings_import_done:'✅ バックアップをインポートしました！',
+    settings_reset_confirm:'すべての本、スコア、スター、コイン、ダイヤ、連続記録、バッジが消去されます。名前・学年・保存済み設定は保持されます。この操作は元に戻せません。続けますか？',
+    topic_Plot:'あらすじ', topic_Characters:'登場人物', topic_Setting:'舞台設定', topic_Theme:'テーマ',
+    topic_Vocabulary:'語彙', topic_Custom:'カスタム',
+    quiz_question_count:'{total}問中{n}問目',
+  },
+};
+function t(key){
+  const lang=APP.language||'en';
+  return (STRINGS[lang] && STRINGS[lang][key]) || STRINGS.en[key] || key;
+}
+function tf(key, vars){
+  return t(key).replace(/\{(\w+)\}/g, (_,k)=>(vars[k]??''));
+}
+function applyI18n(){
+  document.querySelectorAll('[data-i18n]').forEach(el=>{ el.textContent=t(el.getAttribute('data-i18n')); });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el=>{ el.placeholder=t(el.getAttribute('data-i18n-placeholder')); });
+  document.querySelectorAll('[data-i18n-title]').forEach(el=>{ el.title=t(el.getAttribute('data-i18n-title')); });
+}
+function currentScreenName(){
+  const active=document.querySelector('.screen.active');
+  return active ? active.id.replace('screen-','') : 'home';
+}
+function rerenderCurrentScreen(){
+  const map={ home:renderHome, genres:renderMyBooks, shop:renderShop, collection:renderCollection,
+    upgrade:renderUpgrade, report:renderReport, settings:renderSettings, calendar:renderCalendar,
+    quiz:renderQuestion };
+  const fn=map[currentScreenName()];
+  if(fn) fn();
+}
+function setLanguage(lang){
+  APP.language=lang; saveState();
+  document.documentElement.lang = ({en:'en',es:'es',fr:'fr',zh:'zh-CN',ja:'ja'})[lang] || 'en';
+  if(typeof rebuildAllBookLanguages==='function') rebuildAllBookLanguages();
+  applyI18n();
+  rerenderCurrentScreen();
+}
+
+// ---------- State ----------
+// Declared here (before BOOKS) so APP already exists once BOOKS/book()/build() run at load time —
+// build() resolves multilingual question text against APP.language, so APP must exist first.
+function defaultState(){
+  return { grade:null, userName:'', stars:0, coins:0, diamonds:0, trainerLevel:1,
+    owned:{characters:['ch1'], accessories:[]}, equip:{character:'ch1', accessories:[]}, history:[], customBooks:[], growth:0,
+    streak:0, bestStreak:0, dailyStreak:{}, lastFireTier:0, fireInventory:[], accountEmail:'', dailyChestClaimed:{}, language:'en' };
+}
+function loadState(){
+  try{ const s=JSON.parse(localStorage.getItem('readolingo_state')); if(s) return migrateState(Object.assign(defaultState(), s)); }catch{}
+  return defaultState();
+}
+// One-time cleanup: an older Add-Book screen stored genres with stray smart
+// quotes (e.g. ”Fantasy”), stranding books on a broken shelf. Normalize them.
+function migrateState(st){
+  (st.customBooks||[]).forEach(b=>{
+    if(typeof b.genre==='string') b.genre=b.genre.replace(/[“”"']/g,'').trim();
+  });
+  return st;
+}
+function saveState(){ try{ localStorage.setItem('readolingo_state', JSON.stringify(APP)); }catch(e){ alert('Could not save — storage may be full (large cover photos?).'); } }
+let APP = loadState();
+
 // ---------- Book library by genre ----------
 // Each book: title, author, genre, and ~12 BOOK-SPECIFIC questions.
 // Quizzes draw ONLY from a book's own questions (no generic padding).
 const BOOKS = [
   // FANTASY
   book("Harry Potter and the Sorcerer's Stone","J.K. Rowling","Fantasy",[
-    ["What school does Harry attend?",["Hogwarts","Camp Half-Blood","Narnia Academy","Xavier's"],0,"Setting","E"],
-    ["What sport is played on broomsticks?",["Quidditch","Soccer","Cricket","Chess"],0,"Plot","E"],
-    ["Who are Harry's two best friends?",["Ron and Hermione","Draco and Crabbe","Fred and George","Neville and Dean"],0,"Characters","E"],
-    ["Where does Harry live before Hogwarts?",["In a cupboard under the stairs","In a castle","On a farm","In a forest"],0,"Setting","E"],
-    ["Who brings Harry his letter and takes him shopping?",["Hagrid","Snape","Dumbledore","Dudley"],0,"Characters","E"],
-    ["Which house is Harry sorted into?",["Gryffindor","Slytherin","Hufflepuff","Ravenclaw"],0,"Plot","E"],
-    ["What is Harry's pet owl named?",["Hedwig","Errol","Scabbers","Fawkes"],0,"Characters","E"],
-    ["What is hidden and guarded at the school?",["The Sorcerer's Stone","A dragon egg","A time machine","Gold coins"],0,"Plot","M"],
-    ["Who is the villain seeking the stone?",["Voldemort","Snape","Dumbledore","Hagrid"],0,"Characters","M"],
-    ["What Quidditch position does Harry play?",["Seeker","Keeper","Beater","Chaser"],0,"Plot","M"],
-    ["What is the name of the giant three-headed dog?",["Fluffy","Fang","Norbert","Aragog"],0,"Characters","M"],
-    ["How do students reach the school train?",["Platform nine and three-quarters","A flying car","A boat","A portal"],0,"Setting","M"],
-    ["Who is the half-giant gamekeeper?",["Hagrid","Filch","Snape","Quirrell"],0,"Characters","M"],
-    ["What baby dragon does Hagrid raise?",["Norbert","Fluffy","Fawkes","Aragog"],0,"Plot","M"],
-    ["What does the Mirror of Erised show?",["Your deepest desire","The future","A map","Your fears"],0,"Theme","H"],
-    ["Who is secretly helping Voldemort at the school?",["Professor Quirrell","Snape","Hagrid","McGonagall"],0,"Plot","H"],
-    ["What protects Harry from Quirrell's deadly touch?",["His mother's love","A spell","His wand","Luck"],0,"Theme","H"],
-    ["How can one safely get the Stone from the mirror?",["Want it but not use it","Smash the mirror","Say a spell","Steal it"],0,"Plot","H"],
-    ["What plant is escaped by relaxing, not struggling?",["Devil's Snare","A Mandrake","The Whomping Willow","Gillyweed"],0,"Plot","H"],
-    ["What does the Sorcerer's Stone create?",["The Elixir of Life and gold","Spells","Portkeys","Patronuses"],0,"Theme","H"],
+    [{en:"What school does Harry attend?",es:"¿A qué escuela asiste Harry?",fr:"Dans quelle école Harry étudie-t-il ?",zh:"哈利在哪所学校上学？",ja:"ハリーはどの学校に通っていますか？"},
+      [{en:"Hogwarts",es:"Hogwarts",fr:"Poudlard",zh:"霍格沃茨",ja:"ホグワーツ"},{en:"Camp Half-Blood",es:"Campamento Mestizo",fr:"Colonie des Sang-Mêlé",zh:"混血营",ja:"キャンプ・ハーフブラッド"},{en:"Narnia Academy",es:"Academia de Narnia",fr:"Académie de Narnia",zh:"纳尼亚学院",ja:"ナルニア学院"},{en:"Xavier's",es:"Instituto Xavier",fr:"Institut Xavier",zh:"泽维尔学院",ja:"エグゼビア学院"}],0,"Setting","E"],
+    [{en:"What sport is played on broomsticks?",es:"¿Qué deporte se juega en escobas voladoras?",fr:"Quel sport se joue sur des balais volants ?",zh:"什么运动是骑着扫帚玩的？",ja:"ほうきに乗ってするスポーツは何ですか？"},
+      [{en:"Quidditch",es:"Quidditch",fr:"Quidditch",zh:"魁地奇",ja:"クィディッチ"},{en:"Soccer",es:"Fútbol",fr:"Football",zh:"足球",ja:"サッカー"},{en:"Cricket",es:"Críquet",fr:"Cricket",zh:"板球",ja:"クリケット"},{en:"Chess",es:"Ajedrez",fr:"Échecs",zh:"国际象棋",ja:"チェス"}],0,"Plot","E"],
+    [{en:"Who are Harry's two best friends?",es:"¿Quiénes son los dos mejores amigos de Harry?",fr:"Qui sont les deux meilleurs amis de Harry ?",zh:"哈利最好的两个朋友是谁？",ja:"ハリーの一番の親友2人は誰ですか？"},
+      [{en:"Ron and Hermione",es:"Ron y Hermione",fr:"Ron et Hermione",zh:"罗恩和赫敏",ja:"ロンとハーマイオニー"},{en:"Draco and Crabbe",es:"Draco y Crabbe",fr:"Drago et Crabbe",zh:"德拉科和克拉布",ja:"ドラコとクラッブ"},{en:"Fred and George",es:"Fred y George",fr:"Fred et George",zh:"弗雷德和乔治",ja:"フレッドとジョージ"},{en:"Neville and Dean",es:"Neville y Dean",fr:"Neville et Dean",zh:"纳威和迪安",ja:"ネビルとディーン"}],0,"Characters","E"],
+    [{en:"Where does Harry live before Hogwarts?",es:"¿Dónde vive Harry antes de Hogwarts?",fr:"Où Harry vit-il avant Poudlard ?",zh:"哈利在去霍格沃茨之前住在哪里？",ja:"ハリーはホグワーツに入る前どこに住んでいましたか？"},
+      [{en:"In a cupboard under the stairs",es:"En una alacena bajo las escaleras",fr:"Dans un placard sous l'escalier",zh:"楼梯下的碗柜里",ja:"階段下の物置"},{en:"In a castle",es:"En un castillo",fr:"Dans un château",zh:"城堡里",ja:"お城"},{en:"On a farm",es:"En una granja",fr:"Dans une ferme",zh:"农场里",ja:"農場"},{en:"In a forest",es:"En un bosque",fr:"Dans une forêt",zh:"森林里",ja:"森"}],0,"Setting","E"],
+    [{en:"Who brings Harry his letter and takes him shopping?",es:"¿Quién le lleva la carta a Harry y lo lleva de compras?",fr:"Qui apporte sa lettre à Harry et l'emmène faire des courses ?",zh:"谁给哈利送信并带他去购物？",ja:"ハリーに手紙を届けて買い物に連れて行くのは誰ですか？"},
+      [{en:"Hagrid",es:"Hagrid",fr:"Hagrid",zh:"海格",ja:"ハグリッド"},{en:"Snape",es:"Snape",fr:"Rogue",zh:"斯内普",ja:"スネイプ"},{en:"Dumbledore",es:"Dumbledore",fr:"Dumbledore",zh:"邓布利多",ja:"ダンブルドア"},{en:"Dudley",es:"Dudley",fr:"Dudley",zh:"达力",ja:"ダドリー"}],0,"Characters","E"],
+    [{en:"Which house is Harry sorted into?",es:"¿A qué casa es asignado Harry?",fr:"Dans quelle maison Harry est-il réparti ?",zh:"哈利被分到了哪个学院？",ja:"ハリーはどの寮に入りましたか？"},
+      [{en:"Gryffindor",es:"Gryffindor",fr:"Gryffondor",zh:"格兰芬多",ja:"グリフィンドール"},{en:"Slytherin",es:"Slytherin",fr:"Serpentard",zh:"斯莱特林",ja:"スリザリン"},{en:"Hufflepuff",es:"Hufflepuff",fr:"Poufsouffle",zh:"赫奇帕奇",ja:"ハッフルパフ"},{en:"Ravenclaw",es:"Ravenclaw",fr:"Serdaigle",zh:"拉文克劳",ja:"レイブンクロー"}],0,"Plot","E"],
+    [{en:"What is Harry's pet owl named?",es:"¿Cómo se llama la lechuza de Harry?",fr:"Comment s'appelle la chouette de Harry ?",zh:"哈利的宠物猫头鹰叫什么名字？",ja:"ハリーのペットのフクロウの名前は？"},
+      [{en:"Hedwig",es:"Hedwig",fr:"Hedwige",zh:"海德薇",ja:"ヘドウィグ"},{en:"Errol",es:"Errol",fr:"Coq",zh:"埃罗尔",ja:"エロール"},{en:"Scabbers",es:"Scabbers",fr:"Croûtard",zh:"斑斑",ja:"スキャバーズ"},{en:"Fawkes",es:"Fawkes",fr:"Fumseck",zh:"福克斯",ja:"フォークス"}],0,"Characters","E"],
+    [{en:"What is hidden and guarded at the school?",es:"¿Qué está escondido y custodiado en la escuela?",fr:"Qu'est-ce qui est caché et gardé à l'école ?",zh:"学校里藏着并守护着什么？",ja:"学校に隠されて守られているものは何ですか？"},
+      [{en:"The Sorcerer's Stone",es:"La Piedra Filosofal",fr:"La Pierre Philosophale",zh:"魔法石",ja:"賢者の石"},{en:"A dragon egg",es:"Un huevo de dragón",fr:"Un œuf de dragon",zh:"一枚龙蛋",ja:"ドラゴンの卵"},{en:"A time machine",es:"Una máquina del tiempo",fr:"Une machine à voyager dans le temps",zh:"一台时间机器",ja:"タイムマシン"},{en:"Gold coins",es:"Monedas de oro",fr:"Des pièces d'or",zh:"金币",ja:"金貨"}],0,"Plot","M"],
+    [{en:"Who is the villain seeking the stone?",es:"¿Quién es el villano que busca la piedra?",fr:"Qui est le méchant qui cherche la pierre ?",zh:"谁是想找到魔法石的反派？",ja:"石を狙う悪役は誰ですか？"},
+      [{en:"Voldemort",es:"Voldemort",fr:"Voldemort",zh:"伏地魔",ja:"ヴォルデモート"},{en:"Snape",es:"Snape",fr:"Rogue",zh:"斯内普",ja:"スネイプ"},{en:"Dumbledore",es:"Dumbledore",fr:"Dumbledore",zh:"邓布利多",ja:"ダンブルドア"},{en:"Hagrid",es:"Hagrid",fr:"Hagrid",zh:"海格",ja:"ハグリッド"}],0,"Characters","M"],
+    [{en:"What Quidditch position does Harry play?",es:"¿Qué posición de Quidditch juega Harry?",fr:"Quel poste Harry joue-t-il au Quidditch ?",zh:"哈利在魁地奇比赛中担任什么位置？",ja:"ハリーのクィディッチのポジションは？"},
+      [{en:"Seeker",es:"Buscador",fr:"Attrapeur",zh:"找球手",ja:"シーカー"},{en:"Keeper",es:"Guardián",fr:"Gardien",zh:"守门员",ja:"キーパー"},{en:"Beater",es:"Golpeador",fr:"Batteur",zh:"击球手",ja:"ビーター"},{en:"Chaser",es:"Cazador",fr:"Poursuiveur",zh:"追球手",ja:"チェイサー"}],0,"Plot","M"],
+    [{en:"What is the name of the giant three-headed dog?",es:"¿Cómo se llama el gigantesco perro de tres cabezas?",fr:"Comment s'appelle l'énorme chien à trois têtes ?",zh:"那只巨大的三头犬叫什么名字？",ja:"巨大な三つ首の犬の名前は？"},
+      [{en:"Fluffy",es:"Fluffy",fr:"Touffu",zh:"长毛狗",ja:"フラッフィー"},{en:"Fang",es:"Fang",fr:"Crockdur",zh:"牙牙",ja:"ファング"},{en:"Norbert",es:"Norberto",fr:"Norbert",zh:"诺伯",ja:"ノーバート"},{en:"Aragog",es:"Aragog",fr:"Aragog",zh:"阿拉戈克",ja:"アラゴグ"}],0,"Characters","M"],
+    [{en:"How do students reach the school train?",es:"¿Cómo llegan los estudiantes al tren de la escuela?",fr:"Comment les élèves accèdent-ils au train de l'école ?",zh:"学生们怎样到达开往学校的火车？",ja:"生徒たちはどうやって学校行きの列車に乗りますか？"},
+      [{en:"Platform nine and three-quarters",es:"El andén nueve y tres cuartos",fr:"La voie 9 ¾",zh:"九又四分之三站台",ja:"9と4分の3番線"},{en:"A flying car",es:"Un coche volador",fr:"Une voiture volante",zh:"一辆飞行汽车",ja:"空飛ぶ車"},{en:"A boat",es:"Un barco",fr:"Un bateau",zh:"一艘船",ja:"船"},{en:"A portal",es:"Un portal",fr:"Un portail magique",zh:"一个传送门",ja:"魔法の扉"}],0,"Setting","M"],
+    [{en:"Who is the half-giant gamekeeper?",es:"¿Quién es el guardabosques mitad gigante?",fr:"Qui est le garde-chasse mi-géant ?",zh:"谁是半巨人猎场看守？",ja:"半巨人の森番は誰ですか？"},
+      [{en:"Hagrid",es:"Hagrid",fr:"Hagrid",zh:"海格",ja:"ハグリッド"},{en:"Filch",es:"Filch",fr:"Rusard",zh:"费尔奇",ja:"フィルチ"},{en:"Snape",es:"Snape",fr:"Rogue",zh:"斯内普",ja:"スネイプ"},{en:"Quirrell",es:"Quirrell",fr:"Quirrell",zh:"奇洛",ja:"クィレル"}],0,"Characters","M"],
+    [{en:"What baby dragon does Hagrid raise?",es:"¿Qué dragón bebé cría Hagrid?",fr:"Quel bébé dragon Hagrid élève-t-il ?",zh:"海格养的小龙叫什么？",ja:"ハグリッドが育てる赤ちゃんドラゴンは？"},
+      [{en:"Norbert",es:"Norberto",fr:"Norbert",zh:"诺伯",ja:"ノーバート"},{en:"Fluffy",es:"Fluffy",fr:"Touffu",zh:"长毛狗",ja:"フラッフィー"},{en:"Fawkes",es:"Fawkes",fr:"Fumseck",zh:"福克斯",ja:"フォークス"},{en:"Aragog",es:"Aragog",fr:"Aragog",zh:"阿拉戈克",ja:"アラゴグ"}],0,"Plot","M"],
+    [{en:"What does the Mirror of Erised show?",es:"¿Qué muestra el Espejo de Oesed?",fr:"Que montre le Miroir du Riséd ?",zh:"厄里斯魔镜显示的是什么？",ja:"みぞの鏡には何が映りますか？"},
+      [{en:"Your deepest desire",es:"Tu deseo más profundo",fr:"Ton désir le plus profond",zh:"你内心最深处的渴望",ja:"あなたの最も深い願い"},{en:"The future",es:"El futuro",fr:"L'avenir",zh:"未来",ja:"未来"},{en:"A map",es:"Un mapa",fr:"Une carte",zh:"一张地图",ja:"地図"},{en:"Your fears",es:"Tus miedos",fr:"Tes peurs",zh:"你的恐惧",ja:"あなたの恐怖"}],0,"Theme","H"],
+    [{en:"Who is secretly helping Voldemort at the school?",es:"¿Quién ayuda en secreto a Voldemort en la escuela?",fr:"Qui aide secrètement Voldemort à l'école ?",zh:"谁在学校里暗中帮助伏地魔？",ja:"学校でひそかにヴォルデモートを助けているのは誰ですか？"},
+      [{en:"Professor Quirrell",es:"El profesor Quirrell",fr:"Le professeur Quirrell",zh:"奇洛教授",ja:"クィレル先生"},{en:"Snape",es:"Snape",fr:"Rogue",zh:"斯内普",ja:"スネイプ"},{en:"Hagrid",es:"Hagrid",fr:"Hagrid",zh:"海格",ja:"ハグリッド"},{en:"McGonagall",es:"McGonagall",fr:"McGonagall",zh:"麦格",ja:"マクゴナガル"}],0,"Plot","H"],
+    [{en:"What protects Harry from Quirrell's deadly touch?",es:"¿Qué protege a Harry del toque mortal de Quirrell?",fr:"Qu'est-ce qui protège Harry du toucher mortel de Quirrell ?",zh:"是什么保护哈利免受奇洛致命的触碰？",ja:"クィレルの致命的な接触からハリーを守るものは？"},
+      [{en:"His mother's love",es:"El amor de su madre",fr:"L'amour de sa mère",zh:"他母亲的爱",ja:"母親の愛"},{en:"A spell",es:"Un hechizo",fr:"Un sortilège",zh:"一个咒语",ja:"呪文"},{en:"His wand",es:"Su varita",fr:"Sa baguette",zh:"他的魔杖",ja:"彼の杖"},{en:"Luck",es:"La suerte",fr:"La chance",zh:"运气",ja:"運"}],0,"Theme","H"],
+    [{en:"How can one safely get the Stone from the mirror?",es:"¿Cómo se puede obtener la Piedra del espejo de forma segura?",fr:"Comment peut-on récupérer la Pierre du miroir sans danger ?",zh:"怎样才能安全地从镜子里取出魔法石？",ja:"鏡から安全に石を取り出す方法は？"},
+      [{en:"Want it but not use it",es:"Quererla pero no usarla",fr:"La vouloir sans l'utiliser",zh:"想要它但不使用它",ja:"それを望むが使おうとしないこと"},{en:"Smash the mirror",es:"Romper el espejo",fr:"Briser le miroir",zh:"打碎镜子",ja:"鏡を割る"},{en:"Say a spell",es:"Decir un hechizo",fr:"Dire un sortilège",zh:"念一句咒语",ja:"呪文を唱える"},{en:"Steal it",es:"Robarla",fr:"La voler",zh:"偷走它",ja:"それを盗む"}],0,"Plot","H"],
+    [{en:"What plant is escaped by relaxing, not struggling?",es:"¿De qué planta se escapa relajándose en vez de luchar?",fr:"De quelle plante peut-on s'échapper en se relaxant plutôt qu'en luttant ?",zh:"怎样的植物需要放松而不是挣扎才能逃脱？",ja:"もがくのではなく力を抜くことで逃げられる植物は？"},
+      [{en:"Devil's Snare",es:"Lazo del Diablo",fr:"Filet du Diable",zh:"魔鬼网",ja:"悪魔の罠"},{en:"A Mandrake",es:"Una mandrágora",fr:"Une mandragore",zh:"曼德拉草",ja:"マンドレイク"},{en:"The Whomping Willow",es:"El Sauce Boxeador",fr:"Le Saule Cogneur",zh:"打人柳",ja:"暴れ柳"},{en:"Gillyweed",es:"Branquialgas",fr:"Branchiflore",zh:"鳃草",ja:"エラ昆布"}],0,"Plot","H"],
+    [{en:"What does the Sorcerer's Stone create?",es:"¿Qué crea la Piedra Filosofal?",fr:"Que crée la Pierre Philosophale ?",zh:"魔法石能制造出什么？",ja:"賢者の石は何を生み出しますか？"},
+      [{en:"The Elixir of Life and gold",es:"El Elixir de la Vida y oro",fr:"L'Élixir de Longue Vie et de l'or",zh:"长生药和黄金",ja:"命の水と金"},{en:"Spells",es:"Hechizos",fr:"Des sortilèges",zh:"咒语",ja:"呪文"},{en:"Portkeys",es:"Trasladores",fr:"Des Portoloins",zh:"门钥匙",ja:"ポートキー"},{en:"Patronuses",es:"Patronus",fr:"Des Patronus",zh:"守护神",ja:"守護霊"}],0,"Theme","H"],
   ]),
   book("The Lion, the Witch and the Wardrobe","C.S. Lewis","Fantasy",[
     ["How do the children enter Narnia?",["Through a wardrobe","A door","A boat","A tunnel"],0,"Plot","E"],
@@ -576,18 +866,30 @@ const BOOKS = [
     ["What does the prophecy say will happen?",["Four humans will rule and end her reign","The Witch wins","Narnia freezes forever","Aslan leaves"],0,"Theme","H"],
   ]),
   book("The Hobbit","J.R.R. Tolkien","Fantasy",[
-    ["Who is the main hobbit?",["Bilbo Baggins","Frodo","Sam","Gollum"],0,"Characters"],
-    ["What does Bilbo find in the cave?",["A magic ring","A sword","Gold","A map"],0,"Plot"],
-    ["Who leads the company of dwarves?",["Thorin","Gandalf","Smaug","Beorn"],0,"Characters"],
-    ["What is Smaug?",["A dragon","A wizard","A giant","A troll"],0,"Characters"],
-    ["What is the dwarves' goal?",["Reclaim their treasure","Find a king","Start a war","Build a city"],0,"Plot"],
-    ["Which wizard sends Bilbo on the adventure?",["Gandalf","Saruman","Radagast","Elrond"],0,"Characters"],
-    ["Who owned the ring before Bilbo?",["Gollum","Smaug","Thorin","Bard"],0,"Plot"],
-    ["What does the ring do when Bilbo wears it?",["Makes him invisible","Makes him fly","Makes him strong","Reads minds"],0,"Plot"],
-    ["What game does Bilbo play with Gollum?",["A riddle contest","Cards","Chess","Tag"],0,"Plot"],
-    ["What special jewel does Thorin desire most?",["The Arkenstone","The ruby slippers","The Sorcerer's Stone","A diamond crown"],0,"Plot"],
-    ["What job do the dwarves hire Bilbo for?",["A burglar","A cook","A guard","A guide"],0,"Theme"],
-    ["Under which mountain is the dwarves' treasure?",["The Lonely Mountain","Misty Mountain","Mount Doom","Weathertop"],0,"Setting"],
+    [{en:"Who is the main hobbit?",es:"¿Quién es el hobbit protagonista?",fr:"Qui est le hobbit principal ?",zh:"主角霍比特人是谁？",ja:"主人公のホビットは誰ですか？"},
+      [{en:"Bilbo Baggins",es:"Bilbo Bolsón",fr:"Bilbon Sacquet",zh:"比尔博·巴金斯",ja:"ビルボ・バギンズ"},{en:"Frodo",es:"Frodo",fr:"Frodon",zh:"弗罗多",ja:"フロド"},{en:"Sam",es:"Sam",fr:"Sam",zh:"山姆",ja:"サム"},{en:"Gollum",es:"Gollum",fr:"Gollum",zh:"咕噜",ja:"ゴクリ"}],0,"Characters"],
+    [{en:"What does Bilbo find in the cave?",es:"¿Qué encuentra Bilbo en la cueva?",fr:"Que trouve Bilbon dans la grotte ?",zh:"比尔博在洞穴里找到了什么？",ja:"ビルボが洞窟で見つけたものは？"},
+      [{en:"A magic ring",es:"Un anillo mágico",fr:"Un anneau magique",zh:"一枚魔戒",ja:"魔法の指輪"},{en:"A sword",es:"Una espada",fr:"Une épée",zh:"一把剑",ja:"剣"},{en:"Gold",es:"Oro",fr:"De l'or",zh:"黄金",ja:"金"},{en:"A map",es:"Un mapa",fr:"Une carte",zh:"一张地图",ja:"地図"}],0,"Plot"],
+    [{en:"Who leads the company of dwarves?",es:"¿Quién lidera la compañía de enanos?",fr:"Qui dirige la compagnie de nains ?",zh:"谁是这群矮人的首领？",ja:"ドワーフの一行を率いるのは誰ですか？"},
+      [{en:"Thorin",es:"Thorin",fr:"Thorin",zh:"索林",ja:"トーリン"},{en:"Gandalf",es:"Gandalf",fr:"Gandalf",zh:"甘道夫",ja:"ガンダルフ"},{en:"Smaug",es:"Smaug",fr:"Smaug",zh:"史矛革",ja:"スマウグ"},{en:"Beorn",es:"Beorn",fr:"Beorn",zh:"比翁",ja:"ビヨルン"}],0,"Characters"],
+    [{en:"What is Smaug?",es:"¿Qué es Smaug?",fr:"Qu'est-ce que Smaug ?",zh:"史矛革是什么？",ja:"スマウグとは何ですか？"},
+      [{en:"A dragon",es:"Un dragón",fr:"Un dragon",zh:"一条龙",ja:"ドラゴン"},{en:"A wizard",es:"Un mago",fr:"Un magicien",zh:"一个巫师",ja:"魔法使い"},{en:"A giant",es:"Un gigante",fr:"Un géant",zh:"一个巨人",ja:"巨人"},{en:"A troll",es:"Un trol",fr:"Un troll",zh:"一个巨怪",ja:"トロール"}],0,"Characters"],
+    [{en:"What is the dwarves' goal?",es:"¿Cuál es la meta de los enanos?",fr:"Quel est le but des nains ?",zh:"矮人们的目标是什么？",ja:"ドワーフたちの目的は？"},
+      [{en:"Reclaim their treasure",es:"Recuperar su tesoro",fr:"Récupérer leur trésor",zh:"夺回他们的宝藏",ja:"宝物を取り戻すこと"},{en:"Find a king",es:"Encontrar un rey",fr:"Trouver un roi",zh:"寻找一位国王",ja:"王を見つけること"},{en:"Start a war",es:"Iniciar una guerra",fr:"Déclencher une guerre",zh:"发动战争",ja:"戦争を始めること"},{en:"Build a city",es:"Construir una ciudad",fr:"Construire une ville",zh:"建造一座城市",ja:"都市を築くこと"}],0,"Plot"],
+    [{en:"Which wizard sends Bilbo on the adventure?",es:"¿Qué mago envía a Bilbo a la aventura?",fr:"Quel magicien envoie Bilbon à l'aventure ?",zh:"是哪位巫师送比尔博去冒险的？",ja:"ビルボを冒険に送り出す魔法使いは？"},
+      [{en:"Gandalf",es:"Gandalf",fr:"Gandalf",zh:"甘道夫",ja:"ガンダルフ"},{en:"Saruman",es:"Saruman",fr:"Saroumane",zh:"萨鲁曼",ja:"サルマン"},{en:"Radagast",es:"Radagast",fr:"Radagast",zh:"拉达加斯特",ja:"ラダガスト"},{en:"Elrond",es:"Elrond",fr:"Elrond",zh:"埃尔隆德",ja:"エルロンド"}],0,"Characters"],
+    [{en:"Who owned the ring before Bilbo?",es:"¿Quién era el dueño del anillo antes que Bilbo?",fr:"Qui possédait l'anneau avant Bilbon ?",zh:"在比尔博之前，戒指的主人是谁？",ja:"ビルボの前に指輪を持っていたのは誰ですか？"},
+      [{en:"Gollum",es:"Gollum",fr:"Gollum",zh:"咕噜",ja:"ゴクリ"},{en:"Smaug",es:"Smaug",fr:"Smaug",zh:"史矛革",ja:"スマウグ"},{en:"Thorin",es:"Thorin",fr:"Thorin",zh:"索林",ja:"トーリン"},{en:"Bard",es:"Bardo",fr:"Bard",zh:"巴德",ja:"バルド"}],0,"Plot"],
+    [{en:"What does the ring do when Bilbo wears it?",es:"¿Qué hace el anillo cuando Bilbo se lo pone?",fr:"Que fait l'anneau quand Bilbon le porte ?",zh:"比尔博戴上戒指后会怎样？",ja:"ビルボが指輪をつけるとどうなりますか？"},
+      [{en:"Makes him invisible",es:"Lo vuelve invisible",fr:"Le rend invisible",zh:"让他隐形",ja:"彼を透明にする"},{en:"Makes him fly",es:"Lo hace volar",fr:"Le fait voler",zh:"让他飞起来",ja:"彼を飛ばせる"},{en:"Makes him strong",es:"Lo hace fuerte",fr:"Le rend fort",zh:"让他变强壮",ja:"彼を強くする"},{en:"Reads minds",es:"Lee mentes",fr:"Lit les pensées",zh:"读心",ja:"心を読む"}],0,"Plot"],
+    [{en:"What game does Bilbo play with Gollum?",es:"¿A qué juego juega Bilbo con Gollum?",fr:"À quel jeu Bilbon joue-t-il avec Gollum ?",zh:"比尔博和咕噜玩什么游戏？",ja:"ビルボがゴクリとする遊びは？"},
+      [{en:"A riddle contest",es:"Un concurso de acertijos",fr:"Un concours de devinettes",zh:"猜谜比赛",ja:"なぞなぞ勝負"},{en:"Cards",es:"Cartas",fr:"Aux cartes",zh:"纸牌",ja:"トランプ"},{en:"Chess",es:"Ajedrez",fr:"Aux échecs",zh:"国际象棋",ja:"チェス"},{en:"Tag",es:"Al pillapilla",fr:"À chat",zh:"捉迷藏",ja:"鬼ごっこ"}],0,"Plot"],
+    [{en:"What special jewel does Thorin desire most?",es:"¿Qué joya especial desea más Thorin?",fr:"Quel joyau spécial Thorin désire-t-il le plus ?",zh:"索林最渴望的宝石是什么？",ja:"トーリンが最も欲しがる宝石は？"},
+      [{en:"The Arkenstone",es:"La Piedra del Arca",fr:"L'Arkenstone",zh:"阿肯宝石",ja:"アーケンストーン"},{en:"The ruby slippers",es:"Las zapatillas de rubí",fr:"Les pantoufles de rubis",zh:"红宝石鞋",ja:"ルビーの靴"},{en:"The Sorcerer's Stone",es:"La Piedra Filosofal",fr:"La Pierre Philosophale",zh:"魔法石",ja:"賢者の石"},{en:"A diamond crown",es:"Una corona de diamantes",fr:"Une couronne de diamants",zh:"一顶钻石王冠",ja:"ダイヤの王冠"}],0,"Plot"],
+    [{en:"What job do the dwarves hire Bilbo for?",es:"¿Para qué trabajo contratan los enanos a Bilbo?",fr:"Pour quel travail les nains engagent-ils Bilbon ?",zh:"矮人们雇佣比尔博做什么工作？",ja:"ドワーフたちがビルボを雇った仕事は？"},
+      [{en:"A burglar",es:"Un ladrón",fr:"Un cambrioleur",zh:"一名飞贼",ja:"泥棒"},{en:"A cook",es:"Un cocinero",fr:"Un cuisinier",zh:"一名厨师",ja:"料理人"},{en:"A guard",es:"Un guardia",fr:"Un garde",zh:"一名守卫",ja:"見張り"},{en:"A guide",es:"Un guía",fr:"Un guide",zh:"一名向导",ja:"案内人"}],0,"Theme"],
+    [{en:"Under which mountain is the dwarves' treasure?",es:"¿Bajo qué montaña está el tesoro de los enanos?",fr:"Sous quelle montagne se trouve le trésor des nains ?",zh:"矮人的宝藏藏在哪座山下？",ja:"ドワーフの宝物はどの山の下にありますか？"},
+      [{en:"The Lonely Mountain",es:"La Montaña Solitaria",fr:"La Montagne Solitaire",zh:"孤山",ja:"孤独山"},{en:"Misty Mountain",es:"Montañas Nubladas",fr:"Monts Brumeux",zh:"迷雾山脉",ja:"霧ふり山脈"},{en:"Mount Doom",es:"Monte del Destino",fr:"Mont Destin",zh:"末日山",ja:"滅びの山"},{en:"Weathertop",es:"Cima de los Vientos",fr:"Mont Venteux",zh:"风云顶",ja:"風見が丘"}],0,"Setting"],
   ]),
   // ADVENTURE
   book("Treasure Island","Robert Louis Stevenson","Adventure",[
@@ -1229,6 +1531,28 @@ const SKINS = {
 };
 function skinById(id){ return [...SKINS.characters,...SKINS.accessories].find(s=>s.id===id); }
 
+// ---------- Badges ----------
+const BADGES = [
+  {id:'first', name:'First Steps', icon:'👣', desc:'Finish your first book', check:h=>h.length>=1},
+  {id:'five', name:'Page Turner', icon:'📖', desc:'Finish 5 books', check:h=>h.length>=5},
+  {id:'ten', name:'Bookworm', icon:'🐛', desc:'Finish 10 books', check:h=>h.length>=10},
+  {id:'twentyfive', name:'Library Legend', icon:'🏛️', desc:'Finish 25 books', check:h=>h.length>=25},
+  {id:'perfect', name:'Perfectionist', icon:'💯', desc:'Score 100% on a quiz', check:h=>h.some(b=>b.score===100)},
+  {id:'explorer', name:'Genre Explorer', icon:'🧭', desc:'Finish books in 3+ genres', check:h=>new Set(h.map(b=>b.genre)).size>=3},
+  {id:'streak10', name:'On Fire', icon:'🔥', desc:'Reach a streak of 10', check:()=>(APP.bestStreak||0)>=10},
+];
+const BADGE_GENRE_ICONS = {Fantasy:'🐉', Mystery:'🔍', Adventure:'🗺️', Historical:'🏰', 'Science Fiction':'🚀', 'Sci-Fi':'🚀', Humor:'😂', Realistic:'🌍', Classic:'📜', Biography:'👤', Nonfiction:'🔬'};
+function genreBadges(){
+  const counts={};
+  (APP.history||[]).forEach(b=>{ if(b.genre) counts[b.genre]=(counts[b.genre]||0)+1; });
+  return Object.entries(counts).filter(([,c])=>c>=3).map(([genre,c])=>(
+    {id:'genre-'+genre, name:genre+' Fan', icon:BADGE_GENRE_ICONS[genre]||'📚', desc:`Finish 3+ ${genre} books (${c} so far)`, earned:true}));
+}
+function allBadges(){
+  const h=APP.history||[];
+  return [...BADGES.map(b=>({...b, earned:b.check(h)})), ...genreBadges()];
+}
+
 // ---------- Chests ----------
 const CHESTS = [
   {id:'wood',name:'Wooden Chest',icon:'🟫',cost:3,up:0.22},
@@ -1326,7 +1650,7 @@ function renderCalendar(){
   const y=calView.getFullYear(), m=calView.getMonth();
   document.getElementById('cal-today').textContent='Today is '+new Date().toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric',year:'numeric'});
   document.getElementById('cal-label').textContent=new Date(y,m,1).toLocaleDateString(undefined,{month:'long',year:'numeric'});
-  const ds=APP.dailyStreak||{}; const startDay=new Date(y,m,1).getDay(); const days=new Date(y,m+1,0).getDate(); const todayK=dateKey();
+  const ds=APP.dailyStreak||{}; const dc=APP.dailyChestClaimed||{}; const startDay=new Date(y,m,1).getDay(); const days=new Date(y,m+1,0).getDate(); const todayK=dateKey();
   let g='<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center;">';
   ['Su','Mo','Tu','We','Th','Fr','Sa'].forEach(d=>g+=`<div style="font-size:.68rem;color:var(--muted);font-weight:700;">${d}</div>`);
   for(let i=0;i<startDay;i++) g+='<div></div>';
@@ -1334,7 +1658,7 @@ function renderCalendar(){
     const k=dateKey(new Date(y,m,d)); const st=ds[k]||0; const isToday=k===todayK;
     const bg= st>=5?'#e9f9d9':(st>0?'#fff8e1':'var(--card)');
     g+=`<div style="border:2px solid ${isToday?'var(--blue)':'var(--border)'};border-radius:8px;padding:3px 2px;min-height:44px;background:${bg};">
-      <div style="font-size:.74rem;font-weight:700;">${d}</div>${st?`<div style="font-size:.7rem;">🔥${st}</div>`:''}</div>`;
+      <div style="font-size:.74rem;font-weight:700;">${d}</div>${st?`<div style="font-size:.7rem;">🔥${st}</div>`:''}${dc[k]?`<div style="font-size:.65rem;">🎁</div>`:''}</div>`;
   }
   g+='</div>';
   document.getElementById('cal-grid').innerHTML=g;
@@ -1349,8 +1673,18 @@ function renderCalendar(){
 // difficulty is "E" | "M" | "H"; if omitted it is assigned by position
 // (first third easy ... middle medium ... last third hard).
 function diffByIndex(i,n){ const t=n/3; return i<t?'E':(i<2*t?'M':'H'); }
-function build(rows){ const n=rows.length; return rows.map((r,i)=>({q:r[0],options:r[1],answer:r[2],topic:r[3],diff:r[4]||diffByIndex(i,n)})); }
-function book(title,author,genre,rows){ return {title,author,genre,questions:build(rows)}; }
+// A translatable field is either a plain string (English-only, still works untouched)
+// or an {en,es,fr,zh,ja} object — resolved against the current language, falling back to English.
+function localize(v){
+  if(v==null || typeof v==='string') return v;
+  const lang=APP.language||'en';
+  return v[lang] || v.en || '';
+}
+function build(rows){ const n=rows.length; return rows.map((r,i)=>({q:localize(r[0]),options:r[1].map(localize),answer:r[2],topic:r[3],diff:r[4]||diffByIndex(i,n)})); }
+function book(title,author,genre,rows){ return {title,author,genre,rows,questions:build(rows)}; }
+// Built-in BOOKS are constructed once at load; when the language changes, re-run build()
+// against each book's stashed raw rows so questions/options resolve in the new language.
+function rebuildAllBookLanguages(){ BOOKS.forEach(b=>{ b.questions=build(b.rows); }); }
 
 // ---------- Open-ended questions ----------
 // Built from a book's own multiple-choice questions so they stay book-specific.
@@ -1373,27 +1707,6 @@ function makeOE(q){
 }
 function oePref(q){ return ({Theme:3,Plot:2,Characters:1})[q.topic]||0; }
 
-// ---------- State ----------
-function defaultState(){
-  return { grade:null, userName:'', stars:0, coins:0, diamonds:0, trainerLevel:1,
-    owned:{characters:['ch1'], accessories:[]}, equip:{character:'ch1', accessories:[]}, history:[], customBooks:[], growth:0,
-    streak:0, bestStreak:0, dailyStreak:{}, lastFireTier:0, fireInventory:[], accountEmail:'' };
-}
-let APP = loadState();
-function loadState(){
-  try{ const s=JSON.parse(localStorage.getItem('readolingo_state')); if(s) return migrateState(Object.assign(defaultState(), s)); }catch{}
-  return defaultState();
-}
-// One-time cleanup: an older Add-Book screen stored genres with stray smart
-// quotes (e.g. ”Fantasy”), stranding books on a broken shelf. Normalize them.
-function migrateState(st){
-  (st.customBooks||[]).forEach(b=>{
-    if(typeof b.genre==='string') b.genre=b.genre.replace(/[“”"']/g,'').trim();
-  });
-  return st;
-}
-function saveState(){ try{ localStorage.setItem('readolingo_state', JSON.stringify(APP)); }catch(e){ alert('Could not save — storage may be full (large cover photos?).'); } }
-
 // transient
 let quiz = null;
 let chestState = null;
@@ -1411,6 +1724,68 @@ function goShop(){ renderShop(); show('shop'); }
 function goCollection(){ renderCollection(); show('collection'); }
 function goUpgrade(){ renderUpgrade(); show('upgrade'); }
 function goReport(){ renderReport(); show('report'); }
+function goSettings(){ renderSettings(); show('settings'); }
+
+// ---------- Settings ----------
+function renderSettings(){
+  document.getElementById('set-name').value = APP.userName||'';
+  document.getElementById('set-grade').value = APP.grade||'2-3';
+  document.getElementById('set-email').value = APP.accountEmail||'';
+  document.getElementById('set-language').value = APP.language||'en';
+}
+function saveProfileSettings(){
+  const name=val('set-name');
+  const grade=document.getElementById('set-grade').value;
+  const msg=document.getElementById('settings-profile-msg');
+  if(!name){ msg.style.color='var(--red)'; msg.textContent=t('settings_name_required'); return; }
+  APP.userName=name; APP.grade=grade; saveState();
+  msg.style.color='var(--green-dark)'; msg.textContent=t('settings_saved');
+}
+function saveEmailSettings(){
+  APP.accountEmail=val('set-email'); saveState();
+  const msg=document.getElementById('settings-email-msg');
+  msg.style.color='var(--green-dark)'; msg.textContent=t('settings_saved');
+}
+function exportBackup(){
+  const payload=JSON.stringify(APP, null, 2);
+  const blob=new Blob([payload], {type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download=`readolingo-backup-${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+function importBackupFromText(jsonText){
+  let parsed;
+  try{ parsed=JSON.parse(jsonText); }catch(e){ return {err:t('settings_import_bad_json')}; }
+  const required=['grade','userName','stars','coins','diamonds','history','customBooks'];
+  if(!required.every(k=>k in parsed)) return {err:t('settings_import_bad_shape')};
+  if(!confirm(t('settings_import_confirm'))) return {cancelled:true};
+  APP=migrateState(Object.assign(defaultState(), parsed));
+  saveState();
+  return {ok:true};
+}
+function importBackupFile(inputEl){
+  const file=inputEl.files && inputEl.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    const res=importBackupFromText(ev.target.result);
+    const msg=document.getElementById('settings-backup-msg');
+    if(res.err){ msg.style.color='var(--red)'; msg.textContent=res.err; return; }
+    if(res.cancelled) return;
+    msg.style.color='var(--green-dark)'; msg.textContent=t('settings_import_done');
+    inputEl.value='';
+    renderSettings();
+    renderHome();
+  };
+  reader.readAsText(file);
+}
+function resetProgress(){
+  if(!confirm(t('settings_reset_confirm'))) return;
+  const keep={grade:APP.grade, userName:APP.userName, accountEmail:APP.accountEmail, language:APP.language};
+  APP=Object.assign(defaultState(), keep); saveState();
+  goHome();
+}
 
 // ---------- Welcome ----------
 let pendingGrade=null;
@@ -1812,12 +2187,15 @@ async function callClaudeForAddBook(key, selectedGenre, idInfo){
 
   const diffs=gradeCfg.diffs;
   const totalCh=idInfo.chapters;
+  const outLang=LANG_NAMES[APP.language||'en']||'English';
   const prompt=`Write reading-comprehension questions for this specific, already-identified book:
 - Title: "${idInfo.title}"
 - Author: ${idInfo.author}
 - Total chapters: ${totalCh}
 
 The book has already been identified — do NOT change the title, author, or chapter count. Use them exactly as given.
+
+Write all question text, answer options, and model answers in ${outLang}. Keep "topic" values in English exactly as listed (Plot, Characters, Setting, Theme, Vocabulary) — do not translate those.
 
 Write exactly ${mcTarget} multiple-choice questions and ${oeTarget} explain-your-thinking questions for this book.
 
@@ -1870,7 +2248,10 @@ async function callClaudeToGenerateChapterQuiz(key, b, start, end){
   const guide=GRADE_DIFF_GUIDE[grade]||GRADE_DIFF_GUIDE['2-3'];
   const diffs=(GRADE_CFG[grade]||GRADE_CFG['2-3']).diffs;
   const range = start===end ? `chapter ${start}` : `chapters ${start} to ${end}`;
+  const outLang=LANG_NAMES[APP.language||'en']||'English';
   const prompt=`Write reading-comprehension questions about the book "${b.title}" by ${b.author}.
+
+Write all question text, answer options, and model answers in ${outLang}. Keep "topic" values in English exactly as listed (Plot, Characters, Setting, Theme, Vocabulary) — do not translate those.
 
 Cover ONLY ${range} of the book (out of ${b.chapters} total chapters). Every question must be answerable from those chapters and must NOT reveal events from later chapters.
 
@@ -2010,11 +2391,14 @@ function parseJSONLoose(s){
 }
 async function callClaudeForQuestions(key, title, author){
   const genres=genreList().join(', ');
+  const outLang=LANG_NAMES[APP.language||'en']||'English';
   const prompt=`You are a quiz master creating reading comprehension and critical thinking questions for a book learning app.
 
 **Book Details:**
 - Title: ${title}
 - Author: ${author}
+
+**Language:** Write all question text, answer options, and model answers in ${outLang}. Keep "topic" field values in English exactly as listed (Plot, Characters, Setting, Theme, Vocabulary) — do not translate those.
 
 **Your task:** Generate 14-15 high-quality, diverse multiple-choice questions and 4 open-ended "explain your thinking" questions from this book.
 
@@ -2232,7 +2616,7 @@ async function startChapterQuiz(){
 }
 function renderQuestion(){
   const q=quiz.questions[quiz.current], total=quiz.questions.length;
-  document.getElementById('q-count').textContent=`Question ${quiz.current+1} of ${total}`;
+  document.getElementById('q-count').textContent=tf('quiz_question_count', {n:quiz.current+1, total});
   document.getElementById('progress').style.width=(quiz.current/total*100)+'%';
   quiz.selected=null; quiz.checked=false;
   const nb=document.getElementById('next-btn'); nb.textContent='Check';
@@ -2278,16 +2662,22 @@ function nextQuestion(){
       const ta=document.getElementById('oe-input');
       const val=(ta?ta.value:'').trim();
       if(!val) return;
-      const correct=q.keywords.some(k=>val.toLowerCase().includes(k));
+      const valLower=val.toLowerCase();
+      const matched=q.keywords.filter(k=>valLower.includes(k));
+      const correct=matched.length>0;
+      const wordCount=val.split(/\s+/).filter(Boolean).length;
+      // "quality" answers are more than a keyword-stuffed fragment: most keywords present + a real sentence.
+      const quality=correct && wordCount>=6 && (matched.length/q.keywords.length)>=0.5;
       quiz.checked=true;
       if(ta){ ta.disabled=true; ta.style.borderColor=correct?'var(--green)':'var(--red)'; }
       const fb=document.createElement('div');
       fb.className='note'; fb.style.cssText='margin-top:8px;font-size:.9rem;line-height:1.5;';
-      fb.innerHTML=(correct?'<b style="color:var(--green-dark)">✅ Nice — you mentioned a key idea!</b>'
+      fb.innerHTML=(quality?'<b style="color:var(--green-dark)">✅ Great explanation — clear and complete!</b>'
+                          :correct?'<b style="color:var(--green-dark)">✅ Nice — you mentioned a key idea!</b>'
                           :'<b style="color:var(--red)">❌ Not quite — check the sample below.</b>')+
         '<br><b>Sample answer:</b> '+escapeHtml(q.model);
       document.getElementById('q-options').appendChild(fb);
-      quiz.answers.push({topic:q.topic, correct});
+      quiz.answers.push({topic:q.topic, type:'oe', correct, quality});
       nb.textContent=(quiz.current+1<quiz.questions.length)?'Next →':'See Results';
       return;
     }
@@ -2300,7 +2690,7 @@ function nextQuestion(){
       if(b.textContent===correctVal) b.classList.add('correct');
       else if(b.classList.contains('selected')) b.classList.add('wrong');
     });
-    quiz.answers.push({topic:q.topic,correct:quiz.selected.isCorrect});
+    quiz.answers.push({topic:q.topic, type:'mc', correct:quiz.selected.isCorrect});
     nb.textContent=(quiz.current+1<quiz.questions.length)?'Next →':'See Results';
     return;
   }
@@ -2329,8 +2719,28 @@ function showResults(){
   const strengths=[],weaknesses=[];
   Object.entries(byTopic).forEach(([topic,v])=>{ (v.c/v.t>=0.6?strengths:weaknesses).push(topic); });
   document.getElementById('res-strengths').innerHTML=`
-    <h3>Strengths</h3>${strengths.length?strengths.map(s=>`<span class="tag s">${s}</span>`).join(''):'<span class="note">Keep practicing!</span>'}
-    <h3>To work on</h3>${weaknesses.length?weaknesses.map(w=>`<span class="tag w">${w}</span>`).join(''):'<span class="note">None — great job!</span>'}`;
+    <h3>Strengths</h3>${strengths.length?strengths.map(s=>`<span class="tag s">${t('topic_'+s)}</span>`).join(''):'<span class="note">Keep practicing!</span>'}
+    <h3>To work on</h3>${weaknesses.length?weaknesses.map(w=>`<span class="tag w">${t('topic_'+w)}</span>`).join(''):'<span class="note">None — great job!</span>'}`;
+
+  // Multiple-choice vs. explain-your-thinking accuracy (used by the daily report trend).
+  const mcAns=quiz.answers.filter(a=>a.type==='mc'), oeAns=quiz.answers.filter(a=>a.type==='oe');
+  const mcAcc=mcAns.length?Math.round(mcAns.filter(a=>a.correct).length/mcAns.length*100):null;
+  const oeAcc=oeAns.length?Math.round(oeAns.filter(a=>a.correct).length/oeAns.length*100):null;
+
+  // One guaranteed small bonus per calendar day, independent of pass/fail, to reward just showing up.
+  const dk0=dateKey(); APP.dailyChestClaimed=APP.dailyChestClaimed||{};
+  let dailyBonus=0;
+  if(!APP.dailyChestClaimed[dk0]){ dailyBonus=8+Math.floor(Math.random()*8); APP.coins+=dailyBonus; APP.dailyChestClaimed[dk0]=true; }
+  const dailyMsg=dailyBonus?`<div class="reward-banner" style="background:#fff4d6;border-color:#f1c40f;">🎁 Daily chest: +${dailyBonus} coins!</div>`:'';
+
+  // Bonus diamonds for open-ended answers that were full, keyword-complete sentences (not just fail/pass).
+  const oeQualityN=quiz.answers.filter(a=>a.quality).length;
+  const oeBonusDia=oeQualityN*2;
+  if(oeBonusDia>0) APP.diamonds+=oeBonusDia;
+  const oeBonusMsg=oeBonusDia?`<div class="reward-banner" style="background:#eee6ff;border-color:#a78bfa;">🧠 +${oeBonusDia} diamonds for ${oeQualityN} strong explanation${oeQualityN>1?'s':''}!</div>`:'';
+
+  const vocabItems=quiz.questions.filter(q=>q.type==='mc'&&q.topic==='Vocabulary');
+  const vocabBtn=vocabItems.length>=2?`<button class="btn secondary" style="margin-top:8px;" onclick="startVocabGame()">🔤 Vocabulary Catch (+bonus ⭐)</button>`:'';
 
   const rewardBox=document.getElementById('res-reward');
   const actions=document.getElementById('res-actions');
@@ -2348,23 +2758,58 @@ function showResults(){
     const grewStage=growthState().idx>beforeStage;
     const gs=growthState();
     APP.history.unshift({ book:quiz.book, author:quiz.author, genre:quiz.genre, grade:APP.grade,
-      score, correct, total, timeSec:elapsed, strengths, weaknesses, date:new Date().toLocaleDateString() });
+      score, correct, total, timeSec:elapsed, strengths, weaknesses, mcAcc, oeAcc, date:new Date().toLocaleDateString() });
     saveState();
     const growMsg = grewStage
       ? `🌱 Grew into a <b>${gs.cur.name}</b> ${gs.cur.icon}!`
       : (gs.next ? `🌱 Plant +${growthGain}` : '🌟 Tree of Life!');
-    rewardBox.innerHTML=`<div class="reward-banner">🔥 Streak ${APP.streak} &nbsp;·&nbsp; ⭐ +${starsEarned} &nbsp;·&nbsp; ${growMsg}</div>`;
-    actions.innerHTML=`<div class="btn-row"><button class="btn gold" onclick="goShop()">🛍️ Shop</button><button class="btn" onclick="goHome()">🏠 Home</button></div>`;
+    rewardBox.innerHTML=`<div class="reward-banner">🔥 Streak ${APP.streak} &nbsp;·&nbsp; ⭐ +${starsEarned} &nbsp;·&nbsp; ${growMsg}</div>${dailyMsg}${oeBonusMsg}`;
+    actions.innerHTML=`<div class="btn-row"><button class="btn gold" onclick="goShop()">🛍️ Shop</button><button class="btn" onclick="goHome()">🏠 Home</button></div>${vocabBtn}`;
   } else {
     const had=APP.streak||0; APP.streak=0; saveState(); // a score under 80% breaks the streak
-    rewardBox.innerHTML = had>0
-      ? `<div class="reward-banner" style="background:#ffe9e9;border-color:var(--red);">💔 Streak of ${had} broken — score ${PASS_MARK}%+ to start a new one!</div>` : '';
+    rewardBox.innerHTML = (had>0
+      ? `<div class="reward-banner" style="background:#ffe9e9;border-color:var(--red);">💔 Streak of ${had} broken — score ${PASS_MARK}%+ to start a new one!</div>` : '')+dailyMsg+oeBonusMsg;
     actions.innerHTML=`<p class="note center">You need ${PASS_MARK}% to pass and earn a star. Try again!</p>
       <button class="btn" onclick="retry()">Try Again 🔁</button>
-      <button class="btn ghost" onclick="goHome()">Back to Home</button>`;
+      <button class="btn ghost" onclick="goHome()">Back to Home</button>${vocabBtn}`;
   }
   show('results');
 }
+// ---------- Vocabulary Catch (reuses the quiz's own Vocabulary-topic MC questions, no new AI calls) ----------
+let vocabGame=null;
+function startVocabGame(){
+  const items=quiz.questions.filter(q=>q.type==='mc'&&q.topic==='Vocabulary');
+  if(!items.length) return;
+  const words=items.map((q,i)=>({id:i, clue:q.q, def:q.options[q.answer]}));
+  vocabGame={ words, defsOrder:shuffle(words.map(w=>w.id)), matchedClue:null, doneIds:new Set(), awarded:false };
+  renderVocabGame();
+  show('vocab');
+}
+function renderVocabGame(){
+  const g=vocabGame;
+  document.getElementById('vocab-clues').innerHTML=g.words.map(w=>
+    `<button class="option ${g.doneIds.has(w.id)?'correct':(g.matchedClue===w.id?'selected':'')}" ${g.doneIds.has(w.id)?'disabled':''} onclick="pickVocabClue(${w.id})">${escapeHtml(w.clue)}</button>`).join('');
+  document.getElementById('vocab-defs').innerHTML=g.defsOrder.map(id=>{
+    const w=g.words.find(x=>x.id===id);
+    return `<button class="option ${g.doneIds.has(id)?'correct':''}" ${g.doneIds.has(id)?'disabled':''} onclick="pickVocabDef(${id})">${escapeHtml(w.def)}</button>`;
+  }).join('');
+  document.getElementById('vocab-progress').textContent=`${g.doneIds.size}/${g.words.length} matched`;
+  const doneEl=document.getElementById('vocab-done');
+  if(g.doneIds.size===g.words.length){
+    const bonus=g.words.length*3;
+    if(!g.awarded){ APP.stars+=bonus; g.awarded=true; saveState(); }
+    doneEl.style.display='block'; doneEl.textContent=`🎉 All matched! +${bonus} ⭐`;
+  } else { doneEl.style.display='none'; }
+}
+function pickVocabClue(id){ if(vocabGame.doneIds.has(id)) return; vocabGame.matchedClue=id; renderVocabGame(); }
+function pickVocabDef(id){
+  const g=vocabGame;
+  if(g.matchedClue==null || g.doneIds.has(id)) return;
+  if(g.matchedClue===id) g.doneIds.add(id);
+  g.matchedClue=null;
+  renderVocabGame();
+}
+
 function retry(){
   const b=allBooks().find(x=>x.title===quiz.book);
   quiz.questions=buildQuizItems(b);
@@ -2481,6 +2926,14 @@ function renderCollection(){
     const eq=APP.equip.accessories.includes(s.id);
     return skinCard(s,owned,eq,owned?`toggleAcc('${s.id}')`:'');
   }).join('');
+  document.getElementById('coll-badges').innerHTML=allBadges().map(badgeCard).join('');
+}
+function badgeCard(b){
+  const style=`border-color:${b.earned?'#f1c40f':'var(--border)'};${b.earned?'':'opacity:.5;filter:grayscale(1);'}`;
+  return `<div class="skin" style="${style}" title="${escapeHtml(b.desc)}">
+    <div class="e">${b.earned?b.icon:'🔒'}</div>
+    <div class="sn">${escapeHtml(b.name)}</div>
+    <div class="tr" style="color:#f1c40f;">${b.earned?'Earned!':escapeHtml(b.desc)}</div></div>`;
 }
 function skinCard(s,owned,eq,onclick){
   const cls='skin'+(eq?' equipped':'')+(s.tier==='Prismatic'?' prismatic':'');
@@ -2520,6 +2973,8 @@ function doUpgrade(){
 
 // ---------- Report ----------
 function renderReport(){
+  const fam=document.getElementById('in-family');
+  if(fam && !fam.value) fam.value=APP.accountEmail||'';
   const today=new Date().toLocaleDateString();
   const todays=APP.history.filter(b=>b.date===today);
   document.getElementById('report-preview').innerHTML= todays.length?'' :
@@ -2549,7 +3004,20 @@ function reportSummary(todays){
     ? `Worth a little more practice: ${weak.map(w=>`${w} (try: ${tips[w]||'review together'})`).join('; ')}.`
     : `No clear weak spots today — every skill area looked strong. 🎉`;
   const timeLine = `Time spent reading and quizzing today: ${fmtTime(totalTime)}.`;
-  return { avg, totalTime, strengths, weak, overall, strLine, weakLine, timeLine };
+  // Multiple-choice vs. explain-your-thinking accuracy, trended against everything before today.
+  const avgOf=arr=>arr.length?Math.round(arr.reduce((s,v)=>s+v,0)/arr.length):null;
+  const mcAvg=avgOf(todays.map(b=>b.mcAcc).filter(v=>v!=null));
+  const oeAvg=avgOf(todays.map(b=>b.oeAcc).filter(v=>v!=null));
+  const prior=APP.history.filter(b=>b.date!==todays[0].date);
+  const priorMcAvg=avgOf(prior.map(b=>b.mcAcc).filter(v=>v!=null));
+  const priorOeAvg=avgOf(prior.map(b=>b.oeAcc).filter(v=>v!=null));
+  return { avg, totalTime, strengths, weak, overall, strLine, weakLine, timeLine, mcAvg, oeAvg, priorMcAvg, priorOeAvg };
+}
+function trendArrow(cur,prior){
+  if(prior==null) return '';
+  if(cur>prior+2) return ' <span style="color:var(--green-dark)">▲ improving</span>';
+  if(cur<prior-2) return ' <span style="color:var(--red)">▼ dipping</span>';
+  return ' <span style="color:var(--muted)">– steady</span>';
 }
 // Build the report as plain text for emailing (and validate inputs).
 function reportText(){
@@ -2573,6 +3041,8 @@ function reportText(){
     s.strLine,
     s.weakLine,
     s.timeLine,
+    ...(s.mcAvg!=null?['Multiple-choice accuracy: '+s.mcAvg+'%']:[]),
+    ...(s.oeAvg!=null?['Explain-your-thinking accuracy: '+s.oeAvg+'%']:[]),
     '',
     'Goals: '+goals,
     '',
@@ -2607,6 +3077,9 @@ function sendReport(){
       ${todays.map(b=>`• <b>${escapeHtml(b.book)}</b> — ${b.score}% <span style="color:var(--muted)">(Grade ${b.grade}, ${fmtTime(b.timeSec)})</span>`).join('<br>')}
       <h3>💪 Strengths</h3>${escapeHtml(s.strLine)}
       <h3>🎯 Areas to work on</h3>${escapeHtml(s.weakLine)}
+      ${(s.mcAvg!=null||s.oeAvg!=null)?`<h3>🧩 Multiple-choice vs. Explain-in-your-own-words</h3>
+      ${s.mcAvg!=null?`Multiple-choice: <b>${s.mcAvg}%</b>${trendArrow(s.mcAvg,s.priorMcAvg)}<br>`:''}
+      ${s.oeAvg!=null?`Explain-your-thinking: <b>${s.oeAvg}%</b>${trendArrow(s.oeAvg,s.priorOeAvg)}`:''}`:''}
       <h3>⏱ Time spent</h3>${fmtTime(s.totalTime)}
       <h3>🎯 Goals</h3>${escapeHtml(goals)}
     </div>
@@ -2637,6 +3110,9 @@ function buildBackground(){
 // ---------- Init ----------
 buildBackground();
 syncFire(); // bank any fire whose run ended while away
+document.documentElement.lang = ({en:'en',es:'es',fr:'fr',zh:'zh-CN',ja:'ja'})[APP.language] || 'en';
+rebuildAllBookLanguages(); // BOOKS was built before APP existed (English-only); re-resolve for the saved language
+applyI18n();
 if(APP.grade){ goHome(); } else { show('welcome'); }
 </script>
 </body>
