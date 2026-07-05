@@ -342,7 +342,7 @@
       <div class="progress-wrap"><div class="progress-bar" id="progress"></div></div>
       <div class="q-text" id="q-text"></div>
       <div id="q-options"></div>
-      <button class="btn" id="next-btn" onclick="nextQuestion()" disabled>Check</button>
+      <button class="btn" id="next-btn" onclick="nextQuestion()" disabled data-i18n="quiz_check">Check</button>
     </div>
   </section>
 
@@ -632,6 +632,7 @@ const STRINGS = {
     topic_Plot:'Plot', topic_Characters:'Characters', topic_Setting:'Setting', topic_Theme:'Theme',
     topic_Vocabulary:'Vocabulary', topic_Custom:'Custom',
     quiz_question_count:'Question {n} of {total}',
+    quiz_check:'Check', quiz_next:'Next →', quiz_see_results:'See Results',
   },
   es: {
     app_title:'📚 Readolingo', app_tagline:'Léelo. Demuéstralo. Sube de nivel.',
@@ -659,6 +660,7 @@ const STRINGS = {
     topic_Plot:'Trama', topic_Characters:'Personajes', topic_Setting:'Ambientación', topic_Theme:'Tema',
     topic_Vocabulary:'Vocabulario', topic_Custom:'Personalizado',
     quiz_question_count:'Pregunta {n} de {total}',
+    quiz_check:'Comprobar', quiz_next:'Siguiente →', quiz_see_results:'Ver resultados',
   },
   fr: {
     app_title:'📚 Readolingo', app_tagline:'Lis-le. Prouve-le. Monte de niveau.',
@@ -686,6 +688,7 @@ const STRINGS = {
     topic_Plot:'Intrigue', topic_Characters:'Personnages', topic_Setting:'Décor', topic_Theme:'Thème',
     topic_Vocabulary:'Vocabulaire', topic_Custom:'Personnalisé',
     quiz_question_count:'Question {n} sur {total}',
+    quiz_check:'Vérifier', quiz_next:'Suivant →', quiz_see_results:'Voir les résultats',
   },
   zh: {
     app_title:'📚 Readolingo', app_tagline:'读一读，证明它，升级吧。',
@@ -713,6 +716,7 @@ const STRINGS = {
     topic_Plot:'情节', topic_Characters:'人物', topic_Setting:'背景', topic_Theme:'主题',
     topic_Vocabulary:'词汇', topic_Custom:'自定义',
     quiz_question_count:'第 {n} 题，共 {total} 题',
+    quiz_check:'检查', quiz_next:'下一题 →', quiz_see_results:'查看结果',
   },
   ja: {
     app_title:'📚 Readolingo', app_tagline:'読んで、証明して、レベルアップ。',
@@ -740,6 +744,7 @@ const STRINGS = {
     topic_Plot:'あらすじ', topic_Characters:'登場人物', topic_Setting:'舞台設定', topic_Theme:'テーマ',
     topic_Vocabulary:'語彙', topic_Custom:'カスタム',
     quiz_question_count:'{total}問中{n}問目',
+    quiz_check:'確認', quiz_next:'次へ →', quiz_see_results:'結果を見る',
   },
 };
 function t(key){
@@ -2619,7 +2624,7 @@ function renderQuestion(){
   document.getElementById('q-count').textContent=tf('quiz_question_count', {n:quiz.current+1, total});
   document.getElementById('progress').style.width=(quiz.current/total*100)+'%';
   quiz.selected=null; quiz.checked=false;
-  const nb=document.getElementById('next-btn'); nb.textContent='Check';
+  const nb=document.getElementById('next-btn'); nb.textContent=t('quiz_check');
   const opts=document.getElementById('q-options'); opts.innerHTML='';
 
   if(q.type==='oe'){
@@ -2678,7 +2683,7 @@ function nextQuestion(){
         '<br><b>Sample answer:</b> '+escapeHtml(q.model);
       document.getElementById('q-options').appendChild(fb);
       quiz.answers.push({topic:q.topic, type:'oe', correct, quality});
-      nb.textContent=(quiz.current+1<quiz.questions.length)?'Next →':'See Results';
+      nb.textContent=(quiz.current+1<quiz.questions.length)?t('quiz_next'):t('quiz_see_results');
       return;
     }
     // multiple choice
@@ -2691,7 +2696,7 @@ function nextQuestion(){
       else if(b.classList.contains('selected')) b.classList.add('wrong');
     });
     quiz.answers.push({topic:q.topic, type:'mc', correct:quiz.selected.isCorrect});
-    nb.textContent=(quiz.current+1<quiz.questions.length)?'Next →':'See Results';
+    nb.textContent=(quiz.current+1<quiz.questions.length)?t('quiz_next'):t('quiz_see_results');
     return;
   }
   // ----- ADVANCE phase -----
