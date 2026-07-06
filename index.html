@@ -387,6 +387,10 @@
       <h2>🛍️ Chest Shop</h2>
       <p style="color:var(--muted);font-size:.85rem;">Spend ⭐ stars. Open by tapping 6 times — each tap may upgrade the rarity!</p>
       <div id="chest-list"></div>
+      <div style="height:14px;"></div>
+      <h2>🧊 Streak Freeze</h2>
+      <p style="color:var(--muted);font-size:.85rem;">Protects your fire streak if you miss a day. Hold up to 2 at once.</p>
+      <div id="freeze-shop-card"></div>
       <button class="btn ghost" onclick="goHome()">Back</button>
     </div>
   </section>
@@ -514,6 +518,7 @@
       </div>
       <div id="cal-grid"></div>
       <div id="cal-fire" class="center note" style="margin-top:12px;line-height:1.7;"></div>
+      <button id="cal-freeze-btn" class="btn" style="display:none;background:#1cb0f6;" onclick="useFreeze()">🧊 Use a Streak Freeze on Yesterday</button>
       <button class="btn ghost" onclick="goHome()">Back</button>
     </div>
   </section>
@@ -784,7 +789,8 @@ function setLanguage(lang){
 function defaultState(){
   return { grade:null, userName:'', stars:0, coins:0, diamonds:0, trainerLevel:1,
     owned:{characters:['ch1'], accessories:[]}, equip:{character:'ch1', accessories:[]}, history:[], customBooks:[], growth:0,
-    streak:0, bestStreak:0, dailyStreak:{}, lastFireTier:0, fireInventory:[], accountEmail:'', dailyChestClaimed:{}, language:'en' };
+    streak:0, bestStreak:0, dailyStreak:{}, lastFireTier:0, fireInventory:[], accountEmail:'', dailyChestClaimed:{}, language:'en',
+    streakFreezes:0, frozenDays:{} };
 }
 function loadState(){
   try{ const s=JSON.parse(localStorage.getItem('readolingo_state')); if(s) return migrateState(Object.assign(defaultState(), s)); }catch{}
@@ -1615,16 +1621,46 @@ function dateKey(d){ d=d||new Date(); return d.getFullYear()+'-'+String(d.getMon
 function parseKey(k){ const p=k.split('-').map(Number); return new Date(p[0],p[1]-1,p[2]); }
 // Current unbroken fire run: consecutive calendar days with a best streak ≥5.
 // A day whose best streak is under 5 (or a missed day) ends the run.
+function dayQualifies(k){ const ds=APP.dailyStreak||{}; return (ds[k]||0)>=5 || !!(APP.frozenDays&&APP.frozenDays[k]); }
 function currentRunDays(){
   const ds=APP.dailyStreak||{};
   const todayK=dateKey();
   let anchor;
   if(ds[todayK]>=5){ anchor=new Date(); }
   else if(ds[todayK]!==undefined){ return 0; }                  // played today, best < 5 → run broken
-  else { const y=new Date(Date.now()-864e5); if(ds[dateKey(y)]>=5) anchor=y; else return 0; } // not played yet today
+  else { const y=new Date(Date.now()-864e5); if(dayQualifies(dateKey(y))) anchor=y; else return 0; } // not played yet today
   let count=0, d=new Date(anchor);
-  while(ds[dateKey(d)]>=5){ count++; d.setDate(d.getDate()-1); }
+  while(dayQualifies(dateKey(d))){ count++; d.setDate(d.getDate()-1); }
   return count;
+}
+// ---------- Streak freeze (protect one missed day, like a life-saver) ----------
+const FREEZE_MAX=2;
+const FREEZE_COST={ coins:120, diamonds:8 };
+function canBuyFreeze(){ return (APP.streakFreezes||0)<FREEZE_MAX && APP.coins>=FREEZE_COST.coins && APP.diamonds>=FREEZE_COST.diamonds; }
+function buyFreeze(){
+  if((APP.streakFreezes||0)>=FREEZE_MAX){ alert(`You can only hold ${FREEZE_MAX} streak freezes at a time.`); return; }
+  if(APP.coins<FREEZE_COST.coins || APP.diamonds<FREEZE_COST.diamonds){ alert('Not enough coins/diamonds!'); return; }
+  APP.coins-=FREEZE_COST.coins; APP.diamonds-=FREEZE_COST.diamonds;
+  APP.streakFreezes=(APP.streakFreezes||0)+1;
+  saveState(); renderShop();
+}
+// A freeze can only protect yesterday, and only if yesterday was actually missed
+// (best streak < 5) while the day before it was still a qualifying day.
+function canUseFreeze(){
+  if((APP.streakFreezes||0)<=0) return false;
+  const yk=dateKey(new Date(Date.now()-864e5));
+  if(APP.frozenDays&&APP.frozenDays[yk]) return false;
+  if((APP.dailyStreak||{})[yk]>=5) return false;
+  const y2k=dateKey(new Date(Date.now()-2*864e5));
+  return dayQualifies(y2k);
+}
+function useFreeze(){
+  if(!canUseFreeze()) return;
+  APP.streakFreezes--;
+  APP.frozenDays=APP.frozenDays||{};
+  APP.frozenDays[dateKey(new Date(Date.now()-864e5))]=true;
+  saveState(); syncFire(); renderCalendar();
+  alert('🧊 Streak Freeze used! Yesterday is protected and your fire streak lives on.');
 }
 function fireTier(){ return Math.floor(currentRunDays()/7); }   // 7 qualifying days = 1 fire tier
 function bankFire(tier){
@@ -1655,22 +1691,25 @@ function renderCalendar(){
   const y=calView.getFullYear(), m=calView.getMonth();
   document.getElementById('cal-today').textContent='Today is '+new Date().toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric',year:'numeric'});
   document.getElementById('cal-label').textContent=new Date(y,m,1).toLocaleDateString(undefined,{month:'long',year:'numeric'});
-  const ds=APP.dailyStreak||{}; const dc=APP.dailyChestClaimed||{}; const startDay=new Date(y,m,1).getDay(); const days=new Date(y,m+1,0).getDate(); const todayK=dateKey();
+  const ds=APP.dailyStreak||{}; const dc=APP.dailyChestClaimed||{}; const fz=APP.frozenDays||{}; const startDay=new Date(y,m,1).getDay(); const days=new Date(y,m+1,0).getDate(); const todayK=dateKey();
   let g='<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center;">';
   ['Su','Mo','Tu','We','Th','Fr','Sa'].forEach(d=>g+=`<div style="font-size:.68rem;color:var(--muted);font-weight:700;">${d}</div>`);
   for(let i=0;i<startDay;i++) g+='<div></div>';
   for(let d=1;d<=days;d++){
-    const k=dateKey(new Date(y,m,d)); const st=ds[k]||0; const isToday=k===todayK;
-    const bg= st>=5?'#e9f9d9':(st>0?'#fff8e1':'var(--card)');
+    const k=dateKey(new Date(y,m,d)); const st=ds[k]||0; const isToday=k===todayK; const frozen=!!fz[k];
+    const bg= frozen?'#e6f7ff':(st>=5?'#e9f9d9':(st>0?'#fff8e1':'var(--card)'));
     g+=`<div style="border:2px solid ${isToday?'var(--blue)':'var(--border)'};border-radius:8px;padding:3px 2px;min-height:44px;background:${bg};">
-      <div style="font-size:.74rem;font-weight:700;">${d}</div>${st?`<div style="font-size:.7rem;">🔥${st}</div>`:''}${dc[k]?`<div style="font-size:.65rem;">🎁</div>`:''}</div>`;
+      <div style="font-size:.74rem;font-weight:700;">${d}</div>${frozen?`<div style="font-size:.7rem;">🧊</div>`:(st?`<div style="font-size:.7rem;">🔥${st}</div>`:'')}${dc[k]?`<div style="font-size:.65rem;">🎁</div>`:''}</div>`;
   }
   g+='</div>';
   document.getElementById('cal-grid').innerHTML=g;
   const t=fireTier();
   document.getElementById('cal-fire').innerHTML = `🏆 Best streak ever: <b>🔥 ${APP.bestStreak||0}</b><br>`+
     (t>0 ? `Perfect weeks (streak 5+ every day): <b>${t}</b> → trainer has ${fireLabel(t)}`
-         : 'Tip: get a streak of 5+ on every day of a week to give your trainer fire! 🔥');
+         : 'Tip: get a streak of 5+ on every day of a week to give your trainer fire! 🔥')+
+    `<br>🧊 Streak Freezes owned: <b>${APP.streakFreezes||0}</b> (buy more in the Shop)`;
+  const freezeBtn=document.getElementById('cal-freeze-btn');
+  if(freezeBtn) freezeBtn.style.display = canUseFreeze() ? '' : 'none';
 }
 
 // ---------- Helpers to build question objects ----------
@@ -2833,6 +2872,15 @@ function renderShop(){
       <button class="btn ${APP.stars>=c.cost?'gold':''}" ${APP.stars<c.cost?'disabled':''} onclick="buyChest('${c.id}')">
         ${APP.stars>=c.cost?'Buy & Open':'Need more ⭐'}</button>
     </div>`).join('');
+  const owned=APP.streakFreezes||0, maxed=owned>=FREEZE_MAX, afford=canBuyFreeze();
+  document.getElementById('freeze-shop-card').innerHTML=`
+    <div class="chest-card">
+      <div class="e">🧊</div>
+      <div class="nm">Streak Freeze (own ${owned}/${FREEZE_MAX})</div>
+      <div class="desc">Cost: ${FREEZE_COST.coins} 🪙 + ${FREEZE_COST.diamonds} 💎</div>
+      <button class="btn ${afford?'gold':''}" ${(!afford||maxed)?'disabled':''} onclick="buyFreeze()">
+        ${maxed?'Freezer full':(afford?'Buy Freeze':'Need more 🪙💎')}</button>
+    </div>`;
 }
 function buyChest(id){
   const chest=CHESTS.find(c=>c.id===id);
