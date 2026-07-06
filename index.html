@@ -192,6 +192,10 @@
     <div class="card center" id="growth-card" style="padding:14px 16px;">
       <div id="growth-box"></div>
     </div>
+    <div class="card" style="display:flex;align-items:center;gap:12px;">
+      <div id="buddy-home-icon" style="font-size:2.6rem;">🐣</div>
+      <div id="buddy-home-msg" class="note" style="margin:0;flex:1;"></div>
+    </div>
     <div class="wallet">
       <span class="coin">🔥 <span id="w-streak">0</span></span>
       <span class="coin">⭐ <span id="w-stars">0</span></span>
@@ -357,6 +361,10 @@
   <!-- ===== QUIZ ===== -->
   <section id="screen-quiz" class="screen">
     <div class="card">
+      <div id="quiz-buddy" style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+        <div id="buddy-icon" style="font-size:2.2rem;transition:transform .25s;">🐣</div>
+        <div id="buddy-bubble" class="note" style="margin:0;background:#f0f4ff;border-radius:10px;padding:6px 10px;flex:1;">You've got this!</div>
+      </div>
       <div id="boss-battle-bar" style="display:none;margin-bottom:12px;">
         <div style="display:flex;justify-content:space-between;align-items:center;font-weight:700;">
           <span id="boss-name"></span><span id="boss-emoji" style="font-size:1.8rem;"></span>
@@ -1806,6 +1814,33 @@ function applyTrainerFire(card){
   else { const c=FIRE_TIERS[t].color; card.style.background=`radial-gradient(ellipse at 50% 118%, ${c} 0%, transparent 62%), linear-gradient(180deg,#fff,#f6fbff)`; }
 }
 
+// ---------- Reading buddy (mascot that evolves with fire tier and reacts to quiz answers) ----------
+const BUDDY_STAGES=[
+  {min:0, icon:'🐣', name:'Hatchling'},
+  {min:1, icon:'🐥', name:'Chick'},
+  {min:3, icon:'🦜', name:'Parrot'},
+  {min:5, icon:'🦉', name:'Owl'},
+  {min:7, icon:'🐉', name:'Dragon'},
+  {min:10, icon:'🌈', name:'Rainbow Dragon'},
+];
+const BUDDY_CHEERS=['Yes! 🎉','Nice job!','You got it!','Woohoo!','Great reading!','Awesome!'];
+const BUDDY_ENCOURAGE=["Keep going!","So close!","You can do it!","Next one!","Nice try!"];
+function buddyStage(){ let cur=BUDDY_STAGES[0]; const t=fireTier(); BUDDY_STAGES.forEach(s=>{ if(t>=s.min) cur=s; }); return cur; }
+function renderBuddyHome(){
+  const s=buddyStage();
+  document.getElementById('buddy-home-icon').textContent=s.icon;
+  document.getElementById('buddy-home-msg').textContent=`Your reading buddy: ${s.name}! Keep your fire streak going to help it evolve.`;
+}
+function buddyReact(correct){
+  const icon=document.getElementById('buddy-icon'), bubble=document.getElementById('buddy-bubble');
+  if(!icon||!bubble) return;
+  bubble.textContent=(correct?BUDDY_CHEERS:BUDDY_ENCOURAGE)[Math.floor(Math.random()*(correct?BUDDY_CHEERS.length:BUDDY_ENCOURAGE.length))];
+  icon.classList.remove('shake'); void icon.offsetWidth;
+  icon.style.transform = correct ? 'scale(1.3) translateY(-6px)' : 'translateX(-4px)';
+  if(!correct) icon.classList.add('shake');
+  setTimeout(()=>{ icon.style.transform='none'; }, 300);
+}
+
 // ---------- Streak calendar ----------
 let calView=new Date();
 function goCalendar(){ calView=new Date(); renderCalendar(); show('calendar'); }
@@ -2057,6 +2092,7 @@ function renderHome(){
   const c=skinById(APP.equip.character)||SKINS.characters[0];
   document.getElementById('trainer-card').style.borderColor=tierColor(c.tier);
   applyTrainerFire(document.getElementById('trainer-card'));
+  renderBuddyHome();
   renderGrowth();
   renderDayBar();
   const list=document.getElementById('book-list');
@@ -2821,6 +2857,8 @@ function renderQuestion(){
   const q=quiz.questions[quiz.current], total=quiz.questions.length;
   document.getElementById('q-count').textContent=tf('quiz_question_count', {n:quiz.current+1, total});
   document.getElementById('progress').style.width=(quiz.current/total*100)+'%';
+  document.getElementById('buddy-icon').textContent=buddyStage().icon;
+  document.getElementById('buddy-bubble').textContent="You've got this!";
   const bossBar=document.getElementById('boss-battle-bar');
   if(quiz.bossMode && quiz.boss){
     bossBar.style.display='';
@@ -2889,6 +2927,7 @@ function nextQuestion(){
         '<br><b>Sample answer:</b> '+escapeHtml(q.model);
       document.getElementById('q-options').appendChild(fb);
       quiz.answers.push({topic:q.topic, type:'oe', correct, quality});
+      buddyReact(correct);
       nb.textContent=(quiz.current+1<quiz.questions.length)?t('quiz_next'):t('quiz_see_results');
       return;
     }
@@ -2902,6 +2941,7 @@ function nextQuestion(){
       else if(b.classList.contains('selected')) b.classList.add('wrong');
     });
     quiz.answers.push({topic:q.topic, type:'mc', correct:quiz.selected.isCorrect});
+    buddyReact(quiz.selected.isCorrect);
     nb.textContent=(quiz.current+1<quiz.questions.length)?t('quiz_next'):t('quiz_see_results');
     return;
   }
