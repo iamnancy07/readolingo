@@ -459,6 +459,12 @@
     </div>
 
     <div class="card">
+      <h3>👨‍👩‍👧‍👦 Profiles</h3>
+      <p style="color:var(--muted);font-size:.85rem;">Switch between kids/players sharing this device, or add a new one.</p>
+      <button class="btn secondary" style="width:100%;" onclick="goProfiles()">Manage profiles</button>
+    </div>
+
+    <div class="card">
       <h3 data-i18n="settings_profile">👤 Profile</h3>
       <label data-i18n="settings_name_label">Your name</label>
       <input id="set-name" placeholder="e.g. Mia" />
@@ -504,6 +510,17 @@
     </div>
 
     <button class="btn ghost" onclick="goHome()" data-i18n="common_back_home">Back to Home</button>
+  </section>
+
+  <!-- ===== PROFILES ===== -->
+  <section id="screen-profiles" class="screen">
+    <div class="card">
+      <h2>👨‍👩‍👧‍👦 Profiles</h2>
+      <p style="color:var(--muted);font-size:.85rem;">Each profile keeps its own books, streaks, and rewards.</p>
+      <div id="profiles-list"></div>
+      <button class="btn" style="margin-top:10px;" onclick="createProfile()">➕ Add a profile</button>
+      <button class="btn ghost" onclick="goSettings()">Back to Settings</button>
+    </div>
   </section>
 
   <!-- ===== STREAK CALENDAR ===== -->
@@ -792,8 +809,66 @@ function defaultState(){
     streak:0, bestStreak:0, dailyStreak:{}, lastFireTier:0, fireInventory:[], accountEmail:'', dailyChestClaimed:{}, language:'en',
     streakFreezes:0, frozenDays:{} };
 }
+// ---------- Profiles (multiple kids/players sharing one device) ----------
+// Each profile keeps its own save under readolingo_state_<id>; readolingo_profiles
+// is just the {id,name} registry, and readolingo_active_profile tracks who's active.
+function activeProfileId(){ return localStorage.getItem('readolingo_active_profile')||'p1'; }
+function stateKey(id){ return 'readolingo_state_'+id; }
+function loadProfiles(){
+  try{ const p=JSON.parse(localStorage.getItem('readolingo_profiles')); if(p&&p.length) return p; }catch{}
+  return null;
+}
+function saveProfiles(list){ localStorage.setItem('readolingo_profiles', JSON.stringify(list)); }
+// First run after this feature ships: adopt any pre-existing single-save data as "p1".
+function ensureProfiles(){
+  let profiles=loadProfiles();
+  if(!profiles){
+    profiles=[{id:'p1', name:'Player 1'}];
+    saveProfiles(profiles);
+    if(!localStorage.getItem('readolingo_active_profile')) localStorage.setItem('readolingo_active_profile','p1');
+    const legacy=localStorage.getItem('readolingo_state');
+    if(legacy && !localStorage.getItem(stateKey('p1'))) localStorage.setItem(stateKey('p1'), legacy);
+  }
+  return profiles;
+}
+function switchProfile(id){ localStorage.setItem('readolingo_active_profile', id); location.reload(); }
+function createProfile(){
+  const name=(prompt('Name for the new profile?')||'').trim();
+  if(!name) return;
+  const profiles=ensureProfiles();
+  const id='p'+Date.now();
+  profiles.push({id,name});
+  saveProfiles(profiles);
+  switchProfile(id);
+}
+function deleteProfile(id){
+  const profiles=ensureProfiles();
+  const p=profiles.find(x=>x.id===id); if(!p) return;
+  if(!confirm(`Delete "${p.name}" and all their progress? This cannot be undone.`)) return;
+  const remaining=profiles.filter(x=>x.id!==id);
+  saveProfiles(remaining);
+  localStorage.removeItem(stateKey(id));
+  if(activeProfileId()===id){
+    if(remaining[0]) switchProfile(remaining[0].id); else createProfile();
+  } else {
+    renderProfiles();
+  }
+}
+function goProfiles(){ renderProfiles(); show('profiles'); }
+function renderProfiles(){
+  const profiles=ensureProfiles(); const activeId=activeProfileId();
+  document.getElementById('profiles-list').innerHTML=profiles.map(p=>`
+    <div class="chest-card" style="display:flex;align-items:center;justify-content:space-between;text-align:left;">
+      <div><b>${escapeHtml(p.name)}</b>${p.id===activeId?' <span style="color:var(--green-dark);">(active)</span>':''}</div>
+      <div style="display:flex;gap:6px;">
+        ${p.id===activeId?'':`<button class="btn secondary" style="width:auto;margin:0;padding:8px 14px;" onclick="switchProfile('${p.id}')">Switch</button>`}
+        <button class="btn ghost" style="width:auto;margin:0;padding:8px 14px;border-color:var(--red);color:var(--red);" onclick="deleteProfile('${p.id}')">Delete</button>
+      </div>
+    </div>`).join('');
+}
 function loadState(){
-  try{ const s=JSON.parse(localStorage.getItem('readolingo_state')); if(s) return migrateState(Object.assign(defaultState(), s)); }catch{}
+  ensureProfiles();
+  try{ const s=JSON.parse(localStorage.getItem(stateKey(activeProfileId()))); if(s) return migrateState(Object.assign(defaultState(), s)); }catch{}
   return defaultState();
 }
 // One-time cleanup: an older Add-Book screen stored genres with stray smart
@@ -804,7 +879,15 @@ function migrateState(st){
   });
   return st;
 }
-function saveState(){ try{ localStorage.setItem('readolingo_state', JSON.stringify(APP)); }catch(e){ alert('Could not save — storage may be full (large cover photos?).'); } }
+function saveState(){
+  try{
+    localStorage.setItem(stateKey(activeProfileId()), JSON.stringify(APP));
+    if(APP.userName){
+      const profiles=loadProfiles()||[]; const me=profiles.find(p=>p.id===activeProfileId());
+      if(me && me.name!==APP.userName){ me.name=APP.userName; saveProfiles(profiles); }
+    }
+  }catch(e){ alert('Could not save — storage may be full (large cover photos?).'); }
+}
 let APP = loadState();
 
 // ---------- Book library by genre ----------
