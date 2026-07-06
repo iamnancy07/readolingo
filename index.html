@@ -229,6 +229,10 @@
   <section id="screen-genres" class="screen">
     <div class="card">
       <h2>📚 My Books</h2>
+      <div class="chest-card" style="display:flex;align-items:center;justify-content:space-between;text-align:left;padding:12px 16px;margin-bottom:10px;cursor:pointer;" onclick="toggleBossMode()">
+        <div><b>⚔️ Boss Battle Mode</b><div class="note" style="margin:0;">Answer questions to defeat a book boss!</div></div>
+        <div id="boss-mode-switch" style="font-size:1.6rem;">⬜</div>
+      </div>
       <p id="mybooks-empty" style="color:var(--muted);font-size:.9rem;"></p>
       <div id="mybooks-list"></div>
       <div class="btn-row">
@@ -353,6 +357,14 @@
   <!-- ===== QUIZ ===== -->
   <section id="screen-quiz" class="screen">
     <div class="card">
+      <div id="boss-battle-bar" style="display:none;margin-bottom:12px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;font-weight:700;">
+          <span id="boss-name"></span><span id="boss-emoji" style="font-size:1.8rem;"></span>
+        </div>
+        <div style="background:#eee;border-radius:8px;height:14px;overflow:hidden;margin-top:4px;">
+          <div id="boss-hp-bar" style="height:100%;background:#e74c3c;width:100%;transition:width .5s;"></div>
+        </div>
+      </div>
       <div class="q-count" id="q-count">Question 1 of 5</div>
       <div class="progress-wrap"><div class="progress-bar" id="progress"></div></div>
       <div class="q-text" id="q-text"></div>
@@ -2696,12 +2708,27 @@ function buildQuizItemsWithChapters(b, chStart, chEnd){
   }
   return [...mc, ...oe];
 }
+// ---------- Boss Battle Mode (optional, toggled from My Books) ----------
+const BOSSES=[
+  {name:'Grammar Goblin', icon:'👺'},
+  {name:'Plot Twist Phantom', icon:'👻'},
+  {name:'Vocab Vulture', icon:'🦅'},
+  {name:'Sleepy Story Dragon', icon:'🐉'},
+  {name:'Cliffhanger Kraken', icon:'🐙'},
+];
+let bossModeEnabled=false;
+function toggleBossMode(){
+  bossModeEnabled=!bossModeEnabled;
+  document.getElementById('boss-mode-switch').textContent=bossModeEnabled?'✅':'⬜';
+}
+function pickBoss(){ return BOSSES[Math.floor(Math.random()*BOSSES.length)]; }
+
 let selectedBookIdx=null, currentGenreForChapter=null;
 function startBook(idx, genre){
   const b=allBooks()[idx];
   selectedBookIdx=idx;
   currentGenreForChapter=genre;
-  if(!b.chapters){ quiz={ book:b.title, author:b.author, genre:b.genre, questions:buildQuizItems(b), current:0, answers:[], selected:null, checked:false, startTime:0 };
+  if(!b.chapters){ quiz={ book:b.title, author:b.author, genre:b.genre, questions:buildQuizItems(b), current:0, answers:[], selected:null, checked:false, startTime:0, bossMode:bossModeEnabled, boss:bossModeEnabled?pickBoss():null };
     document.getElementById('skim-sub').textContent=`”${b.title}” by ${b.author}`;
     show('skim');
     setTimeout(()=>{ quiz.startTime=Date.now(); renderQuestion(); show('quiz'); }, 1800);
@@ -2785,7 +2812,7 @@ async function startChapterQuiz(){
     return;
   }
   msg.textContent='';
-  quiz={ book:b.title, author:b.author, genre:b.genre, chapters:{total:totalChapters, selected:{start,end}}, questions:quizQuestions, current:0, answers:[], selected:null, checked:false, startTime:0 };
+  quiz={ book:b.title, author:b.author, genre:b.genre, chapters:{total:totalChapters, selected:{start,end}}, questions:quizQuestions, current:0, answers:[], selected:null, checked:false, startTime:0, bossMode:bossModeEnabled, boss:bossModeEnabled?pickBoss():null };
   document.getElementById('skim-sub').textContent=`”${b.title}” by ${b.author}`;
   show('skim');
   setTimeout(()=>{ quiz.startTime=Date.now(); renderQuestion(); show('quiz'); }, 1800);
@@ -2794,6 +2821,14 @@ function renderQuestion(){
   const q=quiz.questions[quiz.current], total=quiz.questions.length;
   document.getElementById('q-count').textContent=tf('quiz_question_count', {n:quiz.current+1, total});
   document.getElementById('progress').style.width=(quiz.current/total*100)+'%';
+  const bossBar=document.getElementById('boss-battle-bar');
+  if(quiz.bossMode && quiz.boss){
+    bossBar.style.display='';
+    document.getElementById('boss-name').textContent=quiz.boss.name;
+    document.getElementById('boss-emoji').textContent=quiz.boss.icon;
+    const correctSoFar=quiz.answers.filter(a=>a.correct).length;
+    document.getElementById('boss-hp-bar').style.width=Math.max(0,100-Math.round(correctSoFar/total*100))+'%';
+  } else { bossBar.style.display='none'; }
   quiz.selected=null; quiz.checked=false;
   const nb=document.getElementById('next-btn'); nb.textContent=t('quiz_check');
   const opts=document.getElementById('q-options'); opts.innerHTML='';
@@ -2950,6 +2985,12 @@ function showResults(){
       <button class="btn ghost" onclick="goHome()">Back to Home</button>${vocabBtn}`;
   }
   show('results');
+  if(quiz.bossMode && quiz.boss){
+    setTimeout(()=>{
+      if(passed) playCutscene({emoji:quiz.boss.icon, title:`${quiz.boss.name} defeated!`, subtitle:`You answered ${correct}/${total} correctly!`});
+      else playCutscene({emoji:'💨', title:`${quiz.boss.name} got away…`, subtitle:`Score ${PASS_MARK}%+ next time to defeat it!`});
+    }, 400);
+  }
 }
 // ---------- Vocabulary Catch (reuses the quiz's own Vocabulary-topic MC questions, no new AI calls) ----------
 let vocabGame=null;
