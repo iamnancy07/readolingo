@@ -2954,6 +2954,17 @@ function renderQuestion(){
   });
   nb.disabled=true;
 }
+// ---------- Golden ticket (rare mid-quiz surprise bonus, capped at 1 per quiz) ----------
+function maybeGoldenTicket(correct){
+  if(!correct || quiz.goldenTicketAwarded) return;
+  if(Math.random()<0.08){
+    quiz.goldenTicketAwarded=true;
+    const coins=30+Math.floor(Math.random()*30);
+    const dia=3+Math.floor(Math.random()*4);
+    APP.coins+=coins; APP.diamonds+=dia; saveState(); renderWallet();
+    setTimeout(()=>playCutscene({emoji:'🎫', title:'Golden Ticket!', subtitle:`Surprise bonus: +${coins} coins, +${dia} diamonds!`}), 500);
+  }
+}
 function selectOption(btn,isCorrect){
   document.querySelectorAll('#q-options .option').forEach(b=>b.classList.remove('selected'));
   btn.classList.add('selected');
@@ -2986,6 +2997,7 @@ function nextQuestion(){
       document.getElementById('q-options').appendChild(fb);
       quiz.answers.push({topic:q.topic, type:'oe', correct, quality});
       buddyReact(correct);
+      maybeGoldenTicket(correct);
       nb.textContent=(quiz.current+1<quiz.questions.length)?t('quiz_next'):t('quiz_see_results');
       return;
     }
@@ -3000,6 +3012,7 @@ function nextQuestion(){
     });
     quiz.answers.push({topic:q.topic, type:'mc', correct:quiz.selected.isCorrect});
     buddyReact(quiz.selected.isCorrect);
+    maybeGoldenTicket(quiz.selected.isCorrect);
     nb.textContent=(quiz.current+1<quiz.questions.length)?t('quiz_next'):t('quiz_see_results');
     return;
   }
