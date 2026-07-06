@@ -124,6 +124,11 @@
   .tier-now { font-size:1.5rem; font-weight:800; margin:10px 0; }
   .clicks-left { color:var(--muted); }
 
+  /* Mystery wheel */
+  .wheel-wrap { position:relative; width:220px; height:220px; margin:12px auto 18px; }
+  .wheel-pointer { position:absolute; top:-6px; left:50%; transform:translateX(-50%); font-size:1.6rem; z-index:2; color:#333; }
+  .wheel { width:220px; height:220px; border-radius:50%; border:6px solid #fff; box-shadow:0 4px 18px rgba(0,0,0,.25); transition:transform 3.6s cubic-bezier(.12,.67,.1,1); }
+
   /* Skin cards */
   .skin-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
   .skin { border:3px solid var(--border); border-radius:14px; padding:12px 6px; text-align:center; background:#fff; cursor:pointer; position:relative; }
@@ -395,7 +400,7 @@
     </div>
     <div class="card">
       <h2>🛍️ Chest Shop</h2>
-      <p style="color:var(--muted);font-size:.85rem;">Spend ⭐ stars. Open by tapping 6 times — each tap may upgrade the rarity!</p>
+      <p style="color:var(--muted);font-size:.85rem;">Spend ⭐ stars, then spin the mystery wheel for a random-rarity reward!</p>
       <div id="chest-list"></div>
       <div style="height:14px;"></div>
       <h2>🧊 Streak Freeze</h2>
@@ -405,13 +410,15 @@
     </div>
   </section>
 
-  <!-- ===== CHEST OPENING ===== -->
+  <!-- ===== CHEST OPENING (mystery wheel) ===== -->
   <section id="screen-chest" class="screen">
     <div class="card open-area">
       <h2 id="chest-name">Wooden Chest</h2>
-      <div class="open-chest" id="chest-emoji" onclick="chestClick()">🎁</div>
-      <div class="tier-now" id="chest-tier">Rare</div>
-      <div class="clicks-left" id="chest-clicks">Tap 6 more times!</div>
+      <div class="wheel-wrap">
+        <div class="wheel-pointer">▼</div>
+        <div class="wheel" id="wheel"></div>
+      </div>
+      <button class="btn gold" id="wheel-spin-btn" onclick="spinWheel()">🎡 Spin!</button>
       <div id="chest-reveal"></div>
     </div>
   </section>
@@ -3011,35 +3018,42 @@ function buyChest(id){
   const chest=CHESTS.find(c=>c.id===id);
   if(APP.stars<chest.cost){ alert('Not enough stars!'); return; }
   APP.stars-=chest.cost; saveState();
-  chestState={ chest, tierIndex:0, clicksLeft:6, done:false };
+  chestState={ chest, tierIndex:0, done:false };
   document.getElementById('chest-name').textContent=chest.name;
-  document.getElementById('chest-emoji').textContent='🎁';
   document.getElementById('chest-reveal').innerHTML='';
-  updateChestUI();
+  renderWheel();
+  document.getElementById('wheel-spin-btn').disabled=false;
+  document.getElementById('wheel-spin-btn').textContent='🎡 Spin!';
   show('chest');
 }
-function updateChestUI(){
-  const t=TIERS[chestState.tierIndex];
-  const el=document.getElementById('chest-tier');
-  el.textContent=t.name; el.style.color=t.color;
-  document.getElementById('chest-clicks').textContent= chestState.clicksLeft>0
-    ? `Tap ${chestState.clicksLeft} more time${chestState.clicksLeft>1?'s':''}!` : 'Opening…';
+function renderWheel(){
+  const seg=360/TIERS.length;
+  const stops=TIERS.map((t,i)=>`${t.color} ${i*seg}deg ${(i+1)*seg}deg`).join(',');
+  const wheel=document.getElementById('wheel');
+  wheel.style.background=`conic-gradient(${stops})`;
+  wheel.style.transition='none';
+  wheel.style.transform='rotate(0deg)';
+  void wheel.offsetWidth;
+  wheel.style.transition='transform 3.6s cubic-bezier(.12,.67,.1,1)';
 }
-function chestClick(){
-  if(!chestState || chestState.done || chestState.clicksLeft<=0) return;
-  chestState.clicksLeft--;
-  // chance to upgrade tier
-  if(Math.random()<chestState.chest.up && chestState.tierIndex<TIERS.length-1){
-    chestState.tierIndex++;
-  }
-  const e=document.getElementById('chest-emoji');
-  e.classList.remove('shake'); void e.offsetWidth; e.classList.add('shake');
-  updateChestUI();
-  if(chestState.clicksLeft<=0){ chestState.done=true; setTimeout(finalizeChest,350); }
+function spinWheel(){
+  if(!chestState || chestState.done) return;
+  chestState.done=true;
+  document.getElementById('wheel-spin-btn').disabled=true;
+  document.getElementById('wheel-spin-btn').textContent='Spinning…';
+  // Same odds as before: roll the chest's upgrade chance 6 times to pick a final tier.
+  let tierIndex=0;
+  for(let i=0;i<6;i++){ if(Math.random()<chestState.chest.up && tierIndex<TIERS.length-1) tierIndex++; }
+  chestState.tierIndex=tierIndex;
+  const seg=360/TIERS.length;
+  const jitter=(Math.random()-0.5)*seg*0.6;
+  const spins=5;
+  const rotation=spins*360 + 360 - tierIndex*seg - seg/2 + jitter;
+  document.getElementById('wheel').style.transform=`rotate(${rotation}deg)`;
+  setTimeout(finalizeChest, 3700);
 }
 function finalizeChest(){
   const tier=TIERS[chestState.tierIndex].name;
-  document.getElementById('chest-emoji').textContent='📦';
   let html;
   if(Math.random()<0.10){
     // 10% coins + diamonds, scaled a bit by tier
