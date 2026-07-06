@@ -421,7 +421,7 @@
     </div>
     <div class="card">
       <h2>🛍️ Chest Shop</h2>
-      <p style="color:var(--muted);font-size:.85rem;">Spend ⭐ stars, then spin the mystery wheel for a random-rarity reward!</p>
+      <p style="color:var(--muted);font-size:.85rem;">Spend ⭐ stars, then spin the wheel or tap to open for a random-rarity reward!</p>
       <div id="chest-list"></div>
       <div style="height:14px;"></div>
       <h2>🧊 Streak Freeze</h2>
@@ -431,15 +431,33 @@
     </div>
   </section>
 
-  <!-- ===== CHEST OPENING (mystery wheel) ===== -->
+  <!-- ===== CHEST OPENING (choice of wheel spin or classic tap) ===== -->
   <section id="screen-chest" class="screen">
     <div class="card open-area">
       <h2 id="chest-name">Wooden Chest</h2>
-      <div class="wheel-wrap">
-        <div class="wheel-pointer">▼</div>
-        <div class="wheel" id="wheel"></div>
+
+      <div id="chest-mode-choice">
+        <p class="note">How do you want to open it?</p>
+        <div class="btn-row">
+          <button class="btn gold" onclick="chooseChestMode('wheel')">🎡 Spin the Wheel</button>
+          <button class="btn secondary" onclick="chooseChestMode('tap')">✋ Tap to Open</button>
+        </div>
       </div>
-      <button class="btn gold" id="wheel-spin-btn" onclick="spinWheel()">🎡 Spin!</button>
+
+      <div id="chest-mode-wheel" style="display:none;">
+        <div class="wheel-wrap">
+          <div class="wheel-pointer">▼</div>
+          <div class="wheel" id="wheel"></div>
+        </div>
+        <button class="btn gold" id="wheel-spin-btn" onclick="spinWheel()">🎡 Spin!</button>
+      </div>
+
+      <div id="chest-mode-tap" style="display:none;">
+        <div class="open-chest" id="chest-emoji" onclick="chestClick()">🎁</div>
+        <div class="tier-now" id="chest-tier">Rare</div>
+        <div class="clicks-left" id="chest-clicks">Tap 6 more times!</div>
+      </div>
+
       <div id="chest-reveal"></div>
     </div>
   </section>
@@ -3168,13 +3186,45 @@ function buyChest(id){
   const chest=CHESTS.find(c=>c.id===id);
   if(APP.stars<chest.cost){ alert('Not enough stars!'); return; }
   APP.stars-=chest.cost; saveState();
-  chestState={ chest, tierIndex:0, done:false };
+  chestState={ chest, tierIndex:0, clicksLeft:6, done:false };
   document.getElementById('chest-name').textContent=chest.name;
   document.getElementById('chest-reveal').innerHTML='';
-  renderWheel();
-  document.getElementById('wheel-spin-btn').disabled=false;
-  document.getElementById('wheel-spin-btn').textContent='🎡 Spin!';
+  document.getElementById('chest-mode-choice').style.display='';
+  document.getElementById('chest-mode-wheel').style.display='none';
+  document.getElementById('chest-mode-tap').style.display='none';
   show('chest');
+}
+function chooseChestMode(mode){
+  document.getElementById('chest-mode-choice').style.display='none';
+  if(mode==='wheel'){
+    document.getElementById('chest-mode-wheel').style.display='';
+    renderWheel();
+    document.getElementById('wheel-spin-btn').disabled=false;
+    document.getElementById('wheel-spin-btn').textContent='🎡 Spin!';
+  } else {
+    document.getElementById('chest-mode-tap').style.display='';
+    document.getElementById('chest-emoji').textContent='🎁';
+    updateChestUI();
+  }
+}
+function updateChestUI(){
+  const t=TIERS[chestState.tierIndex];
+  const el=document.getElementById('chest-tier');
+  el.textContent=t.name; el.style.color=t.color;
+  document.getElementById('chest-clicks').textContent= chestState.clicksLeft>0
+    ? `Tap ${chestState.clicksLeft} more time${chestState.clicksLeft>1?'s':''}!` : 'Opening…';
+}
+function chestClick(){
+  if(!chestState || chestState.done || chestState.clicksLeft<=0) return;
+  chestState.clicksLeft--;
+  // chance to upgrade tier
+  if(Math.random()<chestState.chest.up && chestState.tierIndex<TIERS.length-1){
+    chestState.tierIndex++;
+  }
+  const e=document.getElementById('chest-emoji');
+  e.classList.remove('shake'); void e.offsetWidth; e.classList.add('shake');
+  updateChestUI();
+  if(chestState.clicksLeft<=0){ chestState.done=true; setTimeout(finalizeChest,350); }
 }
 function renderWheel(){
   const seg=360/TIERS.length;
