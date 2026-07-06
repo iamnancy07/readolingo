@@ -216,6 +216,7 @@
         <div class="nav-tile" onclick="goUpgrade()"><span class="e">⬆️</span><span data-i18n="nav_upgrade">Upgrade Trainer</span></div>
         <div class="nav-tile" onclick="goCalendar()"><span class="e">📅</span><span data-i18n="nav_calendar">Streak Calendar</span></div>
         <div class="nav-tile" onclick="goSettings()"><span class="e">⚙️</span><span data-i18n="nav_settings">Settings</span></div>
+        <div class="nav-tile" onclick="goReportCard()"><span class="e">📸</span>Report Card</div>
       </div>
       <button class="btn secondary" onclick="goReport()" data-i18n="nav_send_report">📨 Send Today's Report</button>
     </div>
@@ -557,6 +558,17 @@
       <div id="profiles-list"></div>
       <button class="btn" style="margin-top:10px;" onclick="createProfile()">➕ Add a profile</button>
       <button class="btn ghost" onclick="goSettings()">Back to Settings</button>
+    </div>
+  </section>
+
+  <!-- ===== SHAREABLE REPORT CARD ===== -->
+  <section id="screen-reportcard" class="screen">
+    <div class="card center">
+      <h2>📸 My Reading Report Card</h2>
+      <p class="note">Screenshot it or tap download to share!</p>
+      <canvas id="reportcard-canvas" width="600" height="750" style="width:100%;max-width:320px;border-radius:16px;box-shadow:0 6px 24px rgba(0,0,0,.2);"></canvas>
+      <button class="btn gold" style="margin-top:14px;" onclick="downloadReportCard()">⬇️ Download Image</button>
+      <button class="btn ghost" onclick="goHome()">Back</button>
     </div>
   </section>
 
@@ -1948,6 +1960,52 @@ function goCollection(){ renderCollection(); show('collection'); }
 function goUpgrade(){ renderUpgrade(); show('upgrade'); }
 function goReport(){ renderReport(); show('report'); }
 function goSettings(){ renderSettings(); show('settings'); }
+
+// ---------- Shareable reading report card ----------
+function goReportCard(){ renderReportCard(); show('reportcard'); }
+function renderReportCard(){
+  const cv=document.getElementById('reportcard-canvas'), ctx=cv.getContext('2d');
+  const W=cv.width, H=cv.height;
+  const grad=ctx.createLinearGradient(0,0,0,H);
+  grad.addColorStop(0,'#8a94ff'); grad.addColorStop(1,'#58cc02');
+  ctx.fillStyle=grad; ctx.fillRect(0,0,W,H);
+
+  ctx.textAlign='center';
+  ctx.fillStyle='#fff';
+  ctx.font='bold 40px sans-serif';
+  ctx.fillText('📚 Readolingo', W/2, 70);
+  ctx.font='bold 30px sans-serif';
+  ctx.fillText(`${APP.userName||'Reader'}'s Report Card`, W/2, 120);
+
+  const c=skinById(APP.equip.character)||SKINS.characters[0];
+  ctx.font='140px sans-serif';
+  ctx.fillText(c.icon, W/2, 300);
+  ctx.font='bold 26px sans-serif';
+  ctx.fillText(`Lv ${APP.trainerLevel} ${c.name}`, W/2, 340);
+
+  const stats=[
+    ['🔥 Fire streak', `${fireTier()>0?fireLabel(fireTier()):'0 weeks'}`],
+    ['📖 Books read', `${(APP.history||[]).length}`],
+    ['🏅 Badges earned', `${allBadges().filter(b=>b.earned).length}`],
+    ['🪙 Coins', `${APP.coins||0}`],
+    ['💎 Diamonds', `${APP.diamonds||0}`],
+  ];
+  let y=420;
+  stats.forEach(([label,val])=>{
+    ctx.textAlign='left'; ctx.font='26px sans-serif'; ctx.fillText(label, 60, y);
+    ctx.textAlign='right'; ctx.font='bold 26px sans-serif'; ctx.fillText(val, W-60, y);
+    y+=54;
+  });
+  ctx.textAlign='center'; ctx.font='18px sans-serif'; ctx.fillStyle='rgba(255,255,255,.85)';
+  ctx.fillText(new Date().toLocaleDateString(), W/2, H-30);
+}
+function downloadReportCard(){
+  const cv=document.getElementById('reportcard-canvas');
+  const url=cv.toDataURL('image/png');
+  const a=document.createElement('a');
+  a.href=url; a.download=`readolingo-report-card-${new Date().toISOString().slice(0,10)}.png`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+}
 
 // ---------- Settings ----------
 function renderSettings(){
