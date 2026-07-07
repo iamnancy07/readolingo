@@ -373,6 +373,12 @@
         <div style="background:#eee;border-radius:8px;height:14px;overflow:hidden;margin-top:4px;">
           <div id="boss-hp-bar" style="height:100%;background:#e74c3c;width:100%;transition:width .5s;"></div>
         </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;font-weight:700;margin-top:8px;">
+          <span>🧑 You</span><span id="player-hp-text" style="font-size:.85rem;font-weight:600;">100/100</span>
+        </div>
+        <div style="background:#eee;border-radius:8px;height:14px;overflow:hidden;margin-top:4px;">
+          <div id="player-hp-bar" style="height:100%;background:#2ecc71;width:100%;transition:width .5s;"></div>
+        </div>
       </div>
       <div class="q-count" id="q-count">Question 1 of 5</div>
       <div class="progress-wrap"><div class="progress-bar" id="progress"></div></div>
@@ -2832,13 +2838,22 @@ function toggleBossMode(){
   document.getElementById('boss-mode-switch').textContent=bossModeEnabled?'✅':'⬜';
 }
 function pickBoss(){ return BOSSES[Math.floor(Math.random()*BOSSES.length)]; }
+const PLAYER_HP_MAX=100, PLAYER_HP_DAMAGE=20;
+function updateBossBattleBars(){
+  const total=quiz.questions.length;
+  const correctSoFar=quiz.answers.filter(a=>a.correct).length;
+  document.getElementById('boss-hp-bar').style.width=Math.max(0,100-Math.round(correctSoFar/total*100))+'%';
+  const hp=Math.max(0,quiz.playerHP);
+  document.getElementById('player-hp-bar').style.width=hp+'%';
+  document.getElementById('player-hp-text').textContent=`${hp}/${PLAYER_HP_MAX}`;
+}
 
 let selectedBookIdx=null, currentGenreForChapter=null;
 function startBook(idx, genre){
   const b=allBooks()[idx];
   selectedBookIdx=idx;
   currentGenreForChapter=genre;
-  if(!b.chapters){ quiz={ book:b.title, author:b.author, genre:b.genre, questions:buildQuizItems(b), current:0, answers:[], selected:null, checked:false, startTime:0, bossMode:bossModeEnabled, boss:bossModeEnabled?pickBoss():null };
+  if(!b.chapters){ quiz={ book:b.title, author:b.author, genre:b.genre, questions:buildQuizItems(b), current:0, answers:[], selected:null, checked:false, startTime:0, bossMode:bossModeEnabled, boss:bossModeEnabled?pickBoss():null, playerHP:bossModeEnabled?100:null, playerDefeated:false };
     document.getElementById('skim-sub').textContent=`”${b.title}” by ${b.author}`;
     show('skim');
     setTimeout(()=>{ quiz.startTime=Date.now(); renderQuestion(); show('quiz'); }, 1800);
@@ -2922,7 +2937,7 @@ async function startChapterQuiz(){
     return;
   }
   msg.textContent='';
-  quiz={ book:b.title, author:b.author, genre:b.genre, chapters:{total:totalChapters, selected:{start,end}}, questions:quizQuestions, current:0, answers:[], selected:null, checked:false, startTime:0, bossMode:bossModeEnabled, boss:bossModeEnabled?pickBoss():null };
+  quiz={ book:b.title, author:b.author, genre:b.genre, chapters:{total:totalChapters, selected:{start,end}}, questions:quizQuestions, current:0, answers:[], selected:null, checked:false, startTime:0, bossMode:bossModeEnabled, boss:bossModeEnabled?pickBoss():null, playerHP:bossModeEnabled?100:null, playerDefeated:false };
   document.getElementById('skim-sub').textContent=`”${b.title}” by ${b.author}`;
   show('skim');
   setTimeout(()=>{ quiz.startTime=Date.now(); renderQuestion(); show('quiz'); }, 1800);
@@ -2938,8 +2953,7 @@ function renderQuestion(){
     bossBar.style.display='';
     document.getElementById('boss-name').textContent=quiz.boss.name;
     document.getElementById('boss-emoji').textContent=quiz.boss.icon;
-    const correctSoFar=quiz.answers.filter(a=>a.correct).length;
-    document.getElementById('boss-hp-bar').style.width=Math.max(0,100-Math.round(correctSoFar/total*100))+'%';
+    updateBossBattleBars();
   } else { bossBar.style.display='none'; }
   quiz.selected=null; quiz.checked=false;
   const nb=document.getElementById('next-btn'); nb.textContent=t('quiz_check');
@@ -3014,7 +3028,8 @@ function nextQuestion(){
       quiz.answers.push({topic:q.topic, type:'oe', correct, quality});
       buddyReact(correct);
       maybeGoldenTicket(correct);
-      nb.textContent=(quiz.current+1<quiz.questions.length)?t('quiz_next'):t('quiz_see_results');
+      applyBossDamage(correct);
+      nb.textContent=(!quiz.playerDefeated && quiz.current+1<quiz.questions.length)?t('quiz_next'):t('quiz_see_results');
       return;
     }
     // multiple choice
@@ -3029,18 +3044,27 @@ function nextQuestion(){
     quiz.answers.push({topic:q.topic, type:'mc', correct:quiz.selected.isCorrect});
     buddyReact(quiz.selected.isCorrect);
     maybeGoldenTicket(quiz.selected.isCorrect);
-    nb.textContent=(quiz.current+1<quiz.questions.length)?t('quiz_next'):t('quiz_see_results');
+    applyBossDamage(quiz.selected.isCorrect);
+    nb.textContent=(!quiz.playerDefeated && quiz.current+1<quiz.questions.length)?t('quiz_next'):t('quiz_see_results');
     return;
   }
   // ----- ADVANCE phase -----
+  if(quiz.playerDefeated){ showResults(); return; }
   quiz.current++;
   if(quiz.current<quiz.questions.length) renderQuestion();
   else showResults();
 }
+// Applies boss-battle damage to the player on a wrong answer; flags defeat at 0 HP.
+function applyBossDamage(correct){
+  if(!quiz.bossMode || !quiz.boss || correct) return;
+  quiz.playerHP=Math.max(0, quiz.playerHP-PLAYER_HP_DAMAGE);
+  if(quiz.playerHP<=0) quiz.playerDefeated=true;
+  updateBossBattleBars();
+}
 
 // ---------- Results ----------
 function showResults(){
-  const total=quiz.questions.length;
+  const total=quiz.playerDefeated?quiz.answers.length:quiz.questions.length;
   const correct=quiz.answers.filter(a=>a.correct).length;
   const score=Math.round(correct/total*100);
   const elapsed=Math.round((Date.now()-quiz.startTime)/1000);
@@ -3114,7 +3138,8 @@ function showResults(){
   show('results');
   if(quiz.bossMode && quiz.boss){
     setTimeout(()=>{
-      if(passed) playCutscene({emoji:quiz.boss.icon, title:`${quiz.boss.name} defeated!`, subtitle:`You answered ${correct}/${total} correctly!`});
+      if(quiz.playerDefeated) playCutscene({emoji:'💀', title:`${quiz.boss.name} defeated you!`, subtitle:`You ran out of HP — try again!`});
+      else if(passed) playCutscene({emoji:quiz.boss.icon, title:`${quiz.boss.name} defeated!`, subtitle:`You answered ${correct}/${total} correctly!`});
       else playCutscene({emoji:'💨', title:`${quiz.boss.name} got away…`, subtitle:`Score ${PASS_MARK}%+ next time to defeat it!`});
     }, 400);
   }
@@ -3158,6 +3183,8 @@ function retry(){
   const b=allBooks().find(x=>x.title===quiz.book);
   quiz.questions=buildQuizItems(b);
   quiz.current=0; quiz.answers=[]; quiz.selected=null; quiz.checked=false; quiz.startTime=Date.now();
+  quiz.playerDefeated=false;
+  if(quiz.bossMode){ quiz.boss=pickBoss(); quiz.playerHP=100; }
   renderQuestion(); show('quiz');
 }
 
