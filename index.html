@@ -189,6 +189,7 @@
 
   <!-- ===== HOME ===== -->
   <section id="screen-home" class="screen">
+    <div id="streak-banner"></div>
     <div class="card center" id="growth-card" style="padding:14px 16px;">
       <div id="growth-box"></div>
     </div>
@@ -208,6 +209,7 @@
         <span class="link" onclick="changeGrade()">Grade: <b id="home-grade">2-3</b> (change)</span>
       </div>
     </div>
+    <div class="card" id="quest-card" style="display:none;"></div>
     <div class="card">
       <div class="grid">
         <div class="nav-tile" onclick="goGenres()"><span class="e">📖</span><span data-i18n="nav_read">Read a Book</span></div>
@@ -238,6 +240,7 @@
         <div><b>⚔️ Boss Battle Mode</b><div class="note" style="margin:0;">Answer questions to defeat a book boss!</div></div>
         <div id="boss-mode-switch" style="font-size:1.6rem;">⬜</div>
       </div>
+      <div id="mybooks-recs"></div>
       <p id="mybooks-empty" style="color:var(--muted);font-size:.9rem;"></p>
       <div id="mybooks-list"></div>
       <div class="btn-row">
@@ -382,7 +385,10 @@
       </div>
       <div class="q-count" id="q-count">Question 1 of 5</div>
       <div class="progress-wrap"><div class="progress-bar" id="progress"></div></div>
-      <div class="q-text" id="q-text"></div>
+      <div style="display:flex;align-items:flex-start;gap:8px;">
+        <div class="q-text" id="q-text" style="flex:1;"></div>
+        <button type="button" id="speak-btn" title="Read aloud" style="flex:none;background:none;border:none;font-size:1.5rem;line-height:1;padding:2px 4px;cursor:pointer;">🔊</button>
+      </div>
       <div id="q-options"></div>
       <button class="btn" id="next-btn" onclick="nextQuestion()" disabled data-i18n="quiz_check">Check</button>
     </div>
@@ -401,6 +407,12 @@
       </div>
       <div id="res-strengths"></div>
       <div id="res-actions"></div>
+      <div id="res-note" style="display:none;margin-top:14px;">
+        <p class="note center" style="margin-bottom:6px;">How was this book?</p>
+        <div id="res-note-emojis" style="display:flex;justify-content:center;gap:10px;font-size:1.7rem;"></div>
+        <textarea id="res-note-text" rows="2" placeholder="Anything else? (optional)" style="width:100%;margin-top:8px;padding:10px 12px;border:2px solid var(--border);border-radius:12px;font-family:inherit;resize:vertical;"></textarea>
+        <button class="btn secondary" id="res-note-save" style="margin-top:8px;" onclick="saveReadingNote()">Save note</button>
+      </div>
     </div>
   </section>
 
@@ -1748,6 +1760,23 @@ const GRADE_CFG = {
 const GRADE_QUESTIONS = GRADE_CFG; // alias used by grade validation
 const PASS_MARK = 80;
 
+// ---------- Adaptive difficulty (shifts the grade's difficulty band using recent performance) ----------
+// Reads the last 3 passed/failed scores and nudges the band harder/easier by one notch;
+// buildQuizItems() reads this via adaptiveOffset() when picking questions.
+let lastAdaptiveOffset=0;
+function recentAccuracy(n=3){
+  const h=(APP.history||[]).slice(0,n);
+  if(!h.length) return null;
+  return h.reduce((s,b)=>s+b.score,0)/h.length;
+}
+function adaptiveOffset(){
+  const acc=recentAccuracy(3);
+  if(acc==null) return 0;
+  if(acc>=90) return 1;
+  if(acc<70) return -1;
+  return 0;
+}
+
 // ---------- Growth tree (grows on every passing test) ----------
 // `at` = total passing tests needed to reach that stage.
 const GROWTH_STAGES = [
@@ -1784,6 +1813,7 @@ const FIRE_TIERS=[
 ];
 function dateKey(d){ d=d||new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function parseKey(k){ const p=k.split('-').map(Number); return new Date(p[0],p[1]-1,p[2]); }
+function weekKey(d){ d=d||new Date(); const onejan=new Date(d.getFullYear(),0,1); const wk=Math.ceil((((d-onejan)/86400000)+onejan.getDay()+1)/7); return d.getFullYear()+'-W'+wk; }
 // Current unbroken fire run: consecutive calendar days with a best streak ≥5.
 // A day whose best streak is under 5 (or a missed day) ends the run.
 function dayQualifies(k){ const ds=APP.dailyStreak||{}; return (ds[k]||0)>=5 || !!(APP.frozenDays&&APP.frozenDays[k]); }
@@ -1846,6 +1876,58 @@ function applyTrainerFire(card){
   card.classList.add('fire-on');
   if(t>=10){ card.style.background='radial-gradient(ellipse at 50% 118%, rgba(255,255,255,.25), transparent 60%), conic-gradient(from 0deg,#ff4b4b,#ffc800,#58cc02,#1cb0f6,#9b59b6,#ff4b4b)'; }
   else { const c=FIRE_TIERS[t].color; card.style.background=`radial-gradient(ellipse at 50% 118%, ${c} 0%, transparent 62%), linear-gradient(180deg,#fff,#f6fbff)`; }
+}
+
+// ---------- Weekly quests (randomized pool, recomputed from APP.history so no separate progress tracking is needed) ----------
+const QUEST_POOL=[
+  { type:'finish_books', build:()=>({target:2+Math.floor(Math.random()*2)}),
+    label:t=>`📚 Finish ${t} book${t>1?'s':''} this week`, count:h=>h.length },
+  { type:'high_scores', build:()=>({target:2+Math.floor(Math.random()*2)}),
+    label:t=>`🌟 Score 90%+ on ${t} quiz${t>1?'zes':''}`, count:h=>h.filter(b=>b.score>=90).length },
+  { type:'new_genre', build:()=>({target:1}),
+    label:()=>'🧭 Read a new genre this week',
+    count:h=>{ const before=new Set((APP.history||[]).filter(b=>b.wk!==weekKey()).map(b=>b.genre));
+      return new Set(h.filter(b=>!before.has(b.genre)).map(b=>b.genre)).size; } },
+  { type:'total_correct', build:()=>({target:20+Math.floor(Math.random()*16)}),
+    label:t=>`✅ Answer ${t} questions correctly`, count:h=>h.reduce((s,b)=>s+(b.correct||0),0) },
+  { type:'reading_minutes', build:()=>({target:15+Math.floor(Math.random()*16)}),
+    label:t=>`⏱️ Spend ${t} min reading & quizzing`, count:h=>Math.round(h.reduce((s,b)=>s+(b.timeSec||0),0)/60) },
+];
+function weekHistory(){ const wk=weekKey(); return (APP.history||[]).filter(b=>b.wk===wk); }
+function questReward(target){ return 10+target*3; }
+function ensureWeeklyQuests(){
+  const wk=weekKey();
+  if(!APP.weeklyQuests || APP.weeklyQuests.wk!==wk){
+    const chosen=shuffle(QUEST_POOL.slice()).slice(0,3).map(qt=>({ type:qt.type, target:qt.build().target, claimed:false }));
+    APP.weeklyQuests={ wk, quests:chosen };
+    saveState();
+  }
+}
+function renderQuests(){
+  ensureWeeklyQuests();
+  const card=document.getElementById('quest-card');
+  const h=weekHistory();
+  card.style.display='';
+  card.innerHTML=`<h2>🗓️ Weekly Quests</h2>`+APP.weeklyQuests.quests.map(q=>{
+    const qt=QUEST_POOL.find(p=>p.type===q.type);
+    const prog=Math.min(qt.count(h), q.target);
+    const done=prog>=q.target;
+    const reward=questReward(q.target);
+    const right=q.claimed?`<span class="score-pill pass">✓ Claimed</span>`
+      : done?`<button class="btn secondary" style="padding:6px 12px;" onclick="claimQuest('${q.type}')">🎁 +${reward}</button>`
+      : `<span class="meta">${prog}/${q.target}</span>`;
+    return `<div class="row" style="cursor:default;">
+      <div style="font-weight:700;">${qt.label(q.target)}</div>${right}
+    </div>`;
+  }).join('');
+}
+function claimQuest(type){
+  const q=(APP.weeklyQuests.quests||[]).find(q=>q.type===type);
+  if(!q||q.claimed) return;
+  const qt=QUEST_POOL.find(p=>p.type===type);
+  if(qt.count(weekHistory())<q.target) return;
+  q.claimed=true; APP.coins+=questReward(q.target); saveState();
+  renderQuests(); renderWallet();
 }
 
 // ---------- Reading buddy (mascot that evolves with fire tier and reacts to quiz answers) ----------
@@ -2165,8 +2247,19 @@ function renderDayBar(){
       <span style="color:${col};font-size:1.2rem;">${t.avg}%</span></div>
     <div class="progress-wrap" style="height:18px;"><div class="progress-bar" style="width:${t.avg}%;background:${col};"></div></div>`;
 }
+function renderStreakBanner(){
+  const banner=document.getElementById('streak-banner');
+  const playedToday=!!(APP.dailyStreak||{})[dateKey()];
+  if((APP.streak||0)>0 && !playedToday){
+    banner.innerHTML=`<div class="reward-banner" style="background:#fff4d6;border-color:#f1c40f;">⏳ Finish a book today to keep your 🔥 ${APP.streak}-day streak!</div>`;
+  } else {
+    banner.innerHTML='';
+  }
+}
 function renderHome(){
   renderWallet();
+  renderStreakBanner();
+  renderQuests();
   document.getElementById('home-grade').textContent=APP.grade;
   document.getElementById('trainer-card').innerHTML=trainerHTML();
   const c=skinById(APP.equip.character)||SKINS.characters[0];
@@ -2179,8 +2272,8 @@ function renderHome(){
   if(!APP.history.length){ list.innerHTML='<div class="empty">No books yet. Tap “Read a Book” to begin!</div>'; return; }
   list.innerHTML=APP.history.map(b=>`
     <div class="row" style="cursor:default;">
-      <div><div style="font-weight:700;">${escapeHtml(b.book)}<span class="genre-pill">${escapeHtml(b.genre)}</span></div>
-      <div class="meta">${escapeHtml(b.author)} · Grade ${b.grade} · ${b.date}</div></div>
+      <div><div style="font-weight:700;">${b.emoji?b.emoji+' ':''}${escapeHtml(b.book)}<span class="genre-pill">${escapeHtml(b.genre)}</span></div>
+      <div class="meta">${escapeHtml(b.author)} · Grade ${b.grade} · ${b.date}${b.note?' · “'+escapeHtml(b.note)+'”':''}</div></div>
       <span class="score-pill ${b.score>=PASS_MARK?'pass':'fail'}">${b.score}%</span>
     </div>`).join('');
 }
@@ -2189,7 +2282,34 @@ function renderHome(){
 function allBooks(){ return BOOKS.concat(APP.customBooks||[]); }
 function genreList(){ return [...new Set(allBooks().map(b=>b.genre))]; }
 const GENRE_ICONS={Fantasy:'🐉',Adventure:'🗺️',Animals:'🐾',Classics:'📜',Mystery:'🔍','Science Fiction':'🚀','Realistic Fiction':'🌟'};
+// Ranks unread books by how often their genre shows up in past history (no AI call — pure local heuristic).
+function recommendedBooks(){
+  const hist=APP.history||[];
+  if(!hist.length) return [];
+  const genreCount={};
+  hist.forEach(b=>{ genreCount[b.genre]=(genreCount[b.genre]||0)+1; });
+  const topGenres=Object.keys(genreCount).sort((a,b)=>genreCount[b]-genreCount[a]);
+  const readTitles=new Set(hist.map(b=>b.book));
+  const unread=allBooks().filter(b=>!readTitles.has(b.title) && topGenres.includes(b.genre));
+  unread.sort((a,b)=>topGenres.indexOf(a.genre)-topGenres.indexOf(b.genre));
+  return unread.slice(0,3);
+}
+function renderRecommendations(){
+  const box=document.getElementById('mybooks-recs');
+  const recs=recommendedBooks();
+  if(!recs.length){ box.innerHTML=''; return; }
+  const all=allBooks();
+  box.innerHTML=`<h3 style="margin:4px 0 6px;">✨ Recommended for you</h3>`+recs.map(b=>{
+    const idx=all.indexOf(b);
+    const cover=b.cover?`<img src="${b.cover}" style="width:34px;height:46px;object-fit:cover;border-radius:6px;margin-right:10px;" />`:'';
+    return `<div class="row" onclick="startBook(${idx})" style="cursor:pointer;">
+      <div style="display:flex;align-items:center;">${cover}<div><div style="font-weight:700;">${escapeHtml(b.title)}</div>
+      <div class="meta">${escapeHtml(b.author)} · ${GENRE_ICONS[b.genre]||''} ${escapeHtml(b.genre)}</div></div></div>
+    </div>`;
+  }).join('')+'<div style="height:6px;"></div>';
+}
 function renderMyBooks(){
+  renderRecommendations();
   const all=allBooks();
   const empty=document.getElementById('mybooks-empty');
   const list=document.getElementById('mybooks-list');
@@ -2775,7 +2895,8 @@ async function aiGenerate(){
 function buildQuizItems(b){
   const cfg=GRADE_CFG[APP.grade]||GRADE_CFG['2-3'];
   const rank={E:0,M:1,H:2};
-  const bandRanks=cfg.diffs.map(d=>rank[d]);
+  const offset=adaptiveOffset(); lastAdaptiveOffset=offset;
+  const bandRanks=[...new Set(cfg.diffs.map(d=>Math.max(0,Math.min(2, rank[d]+offset))))];
   // How far a question's difficulty is from the grade's band (0 = on-level).
   const dist=q=>Math.min(...bandRanks.map(r=>Math.abs((rank[q.diff]??1)-r)));
   const all=(b.questions||[]).slice();
@@ -2805,7 +2926,8 @@ function buildQuizItems(b){
 function buildQuizItemsWithChapters(b, chStart, chEnd){
   const cfg=GRADE_CFG[APP.grade]||GRADE_CFG['2-3'];
   const rank={E:0,M:1,H:2};
-  const bandRanks=cfg.diffs.map(d=>rank[d]);
+  const offset=adaptiveOffset(); lastAdaptiveOffset=offset;
+  const bandRanks=[...new Set(cfg.diffs.map(d=>Math.max(0,Math.min(2, rank[d]+offset))))];
   const dist=q=>Math.min(...bandRanks.map(r=>Math.abs((rank[q.diff]??1)-r)));
   const all=(b.questions||[]).filter(q=>q.chapter>=chStart && q.chapter<=chEnd).slice();
   const ordered=shuffle(all).sort((x,y)=>dist(x)-dist(y));
@@ -2961,6 +3083,7 @@ function renderQuestion(){
 
   if(q.type==='oe'){
     document.getElementById('q-text').textContent='✏️ '+q.q;
+    document.getElementById('speak-btn').onclick=()=>speakText(q.q);
     const ta=document.createElement('textarea');
     ta.id='oe-input'; ta.rows=4; ta.placeholder='Write your thinking here…';
     ta.style.cssText='width:100%;padding:12px 14px;border:2px solid var(--border);border-radius:12px;font-size:1rem;font-family:inherit;resize:vertical;';
@@ -2976,6 +3099,7 @@ function renderQuestion(){
   // multiple choice
   document.getElementById('q-text').textContent=q.q;
   const shuffled=shuffle(q.options.map((text,i)=>({text,correct:i===q.answer})));
+  document.getElementById('speak-btn').onclick=()=>speakText(q.q+'. Choices: '+shuffled.map(o=>o.text).join('. '));
   shuffled.forEach(o=>{
     const btn=document.createElement('button');
     btn.className='option'; btn.textContent=o.text;
@@ -2983,6 +3107,15 @@ function renderQuestion(){
     opts.appendChild(btn);
   });
   nb.disabled=true;
+}
+// ---------- Read-aloud (Web Speech API, no API key needed) ----------
+function speakText(str){
+  if(!('speechSynthesis' in window)) return;
+  speechSynthesis.cancel();
+  const u=new SpeechSynthesisUtterance(str);
+  u.rate=0.9;
+  u.lang=({en:'en-US',es:'es-ES',fr:'fr-FR',zh:'zh-CN',ja:'ja-JP'})[APP.language]||'en-US';
+  speechSynthesis.speak(u);
 }
 // ---------- Golden ticket (rare mid-quiz surprise bonus, capped at 1 per quiz) ----------
 function maybeGoldenTicket(correct){
@@ -3101,6 +3234,11 @@ function showResults(){
   if(oeBonusDia>0) APP.diamonds+=oeBonusDia;
   const oeBonusMsg=oeBonusDia?`<div class="reward-banner" style="background:#eee6ff;border-color:#a78bfa;">🧠 +${oeBonusDia} diamonds for ${oeQualityN} strong explanation${oeQualityN>1?'s':''}!</div>`:'';
 
+  // Extra coins for passing while the adaptive band bumped questions up a notch (see adaptiveOffset()).
+  const adaptiveBonus=(passed && lastAdaptiveOffset>0) ? 10+Math.floor(Math.random()*8) : 0;
+  if(adaptiveBonus>0) APP.coins+=adaptiveBonus;
+  const adaptiveMsg=adaptiveBonus?`<div class="reward-banner" style="background:#e6fff2;border-color:#2ecc71;">🚀 Challenge bonus: +${adaptiveBonus} coins for tackling harder questions!</div>`:'';
+
   const vocabItems=quiz.questions.filter(q=>q.type==='mc'&&q.topic==='Vocabulary');
   const vocabBtn=vocabItems.length>=2?`<button class="btn secondary" style="margin-top:8px;" onclick="startVocabGame()">🔤 Vocabulary Catch (+bonus ⭐)</button>`:'';
 
@@ -3120,13 +3258,14 @@ function showResults(){
     const grewStage=growthState().idx>beforeStage;
     const gs=growthState();
     APP.history.unshift({ book:quiz.book, author:quiz.author, genre:quiz.genre, grade:APP.grade,
-      score, correct, total, timeSec:elapsed, strengths, weaknesses, mcAcc, oeAcc, date:new Date().toLocaleDateString() });
+      score, correct, total, timeSec:elapsed, strengths, weaknesses, mcAcc, oeAcc, date:new Date().toLocaleDateString(), wk:weekKey(), dk:dateKey() });
     saveState();
     const growMsg = grewStage
       ? `🌱 Grew into a <b>${gs.cur.name}</b> ${gs.cur.icon}!`
       : (gs.next ? `🌱 Plant +${growthGain}` : '🌟 Tree of Life!');
-    rewardBox.innerHTML=`<div class="reward-banner">🔥 Streak ${APP.streak} &nbsp;·&nbsp; ⭐ +${starsEarned} &nbsp;·&nbsp; ${growMsg}</div>${dailyMsg}${oeBonusMsg}`;
+    rewardBox.innerHTML=`<div class="reward-banner">🔥 Streak ${APP.streak} &nbsp;·&nbsp; ⭐ +${starsEarned} &nbsp;·&nbsp; ${growMsg}</div>${dailyMsg}${oeBonusMsg}${adaptiveMsg}`;
     actions.innerHTML=`<div class="btn-row"><button class="btn gold" onclick="goShop()">🛍️ Shop</button><button class="btn" onclick="goHome()">🏠 Home</button></div>${vocabBtn}`;
+    setupReadingNote();
   } else {
     const had=APP.streak||0; APP.streak=0; saveState(); // a score under 80% breaks the streak
     rewardBox.innerHTML = (had>0
@@ -3134,6 +3273,7 @@ function showResults(){
     actions.innerHTML=`<p class="note center">You need ${PASS_MARK}% to pass and earn a star. Try again!</p>
       <button class="btn" onclick="retry()">Try Again 🔁</button>
       <button class="btn ghost" onclick="goHome()">Back to Home</button>${vocabBtn}`;
+    document.getElementById('res-note').style.display='none';
   }
   show('results');
   if(quiz.bossMode && quiz.boss){
@@ -3143,6 +3283,34 @@ function showResults(){
       else playCutscene({emoji:'💨', title:`${quiz.boss.name} got away…`, subtitle:`Score ${PASS_MARK}%+ next time to defeat it!`});
     }, 400);
   }
+}
+// ---------- Reading log notes (emoji reaction + optional text, attached to the just-logged history entry) ----------
+const NOTE_EMOJIS=['😍','🙂','😐','👎'];
+let noteEmoji=null;
+function setupReadingNote(){
+  noteEmoji=null;
+  const box=document.getElementById('res-note');
+  const wrap=document.getElementById('res-note-emojis');
+  document.getElementById('res-note-text').value='';
+  document.getElementById('res-note-save').textContent='Save note';
+  document.getElementById('res-note-save').disabled=false;
+  wrap.innerHTML=NOTE_EMOJIS.map(e=>`<button type="button" class="note-emoji-btn" data-e="${e}" style="background:none;border:2px solid var(--border);border-radius:10px;padding:4px 10px;cursor:pointer;">${e}</button>`).join('');
+  wrap.querySelectorAll('.note-emoji-btn').forEach(btn=>{
+    btn.onclick=()=>{
+      noteEmoji=btn.dataset.e;
+      wrap.querySelectorAll('.note-emoji-btn').forEach(b=>b.style.borderColor=(b===btn?'var(--green-dark)':'var(--border)'));
+    };
+  });
+  box.style.display='';
+}
+function saveReadingNote(){
+  const entry=APP.history[0];
+  if(!entry) return;
+  entry.emoji=noteEmoji||null;
+  entry.note=document.getElementById('res-note-text').value.trim()||null;
+  saveState();
+  document.getElementById('res-note-save').textContent='Saved ✓';
+  document.getElementById('res-note-save').disabled=true;
 }
 // ---------- Vocabulary Catch (reuses the quiz's own Vocabulary-topic MC questions, no new AI calls) ----------
 let vocabGame=null;
