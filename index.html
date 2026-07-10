@@ -115,6 +115,25 @@
   .chest-card .nm { font-weight:800; margin-top:4px; }
   .chest-card .desc { font-size:.78rem; color:var(--muted); margin:4px 0 8px; }
 
+  /* Reading Themes (app-wide background skins) — only swap the background image so the
+     bgShift animation/size on body keeps running; card/border get a light matching tint. */
+  body.theme-space { background-image: linear-gradient(135deg,#2b2350,#4b3f8a,#7c6fc4,#4b3f8a,#2b2350); }
+  body.theme-space .card, body.theme-space .nav-tile, body.theme-space .chest-card, body.theme-space .row, body.theme-space .stat, body.theme-space .coin { background:#eef0ff; border-color:#c7c3f0; }
+  body.theme-underwater { background-image: linear-gradient(135deg,#003973,#0575e6,#00c6ff,#0575e6,#003973); }
+  body.theme-underwater .card, body.theme-underwater .nav-tile, body.theme-underwater .chest-card, body.theme-underwater .row, body.theme-underwater .stat, body.theme-underwater .coin { background:#e3f6ff; border-color:#a9e2ff; }
+  body.theme-jungle { background-image: linear-gradient(135deg,#0b3d0b,#2e8b2e,#7cc47c,#2e8b2e,#0b3d0b); }
+  body.theme-jungle .card, body.theme-jungle .nav-tile, body.theme-jungle .chest-card, body.theme-jungle .row, body.theme-jungle .stat, body.theme-jungle .coin { background:#eafbe6; border-color:#b8e6b0; }
+
+  /* Streak-milestone fireworks (reuses #cutscene-overlay, spawned as radiating bursts) */
+  .firework-piece { position:absolute; width:7px; height:7px; border-radius:50%; opacity:0; animation: fwBurst 1.1s ease-out forwards; }
+  @keyframes fwBurst { 0%{ transform:translate(0,0) scale(.4); opacity:1; } 100%{ transform:translate(var(--dx),var(--dy)) scale(1); opacity:0; } }
+
+  /* Book trailer (skim screen) */
+  .trailer-cover { width:96px; height:130px; object-fit:cover; border-radius:10px; margin:0 auto 12px; display:block; box-shadow:0 8px 24px rgba(0,0,0,.25); animation: trailerZoom 2.4s ease-out; }
+  @keyframes trailerZoom { 0%{ transform:scale(.6); opacity:0; } 40%{ opacity:1; } 100%{ transform:scale(1); opacity:1; } }
+  .trailer-flash { transition: background .3s ease; }
+  .trailer-tagline { font-style:italic; margin-top:6px; }
+
   /* Chest opening */
   .open-area { text-align:center; padding:24px 10px; }
   .open-chest { font-size:6rem; cursor:pointer; user-select:none; transition:transform .08s; display:inline-block; }
@@ -355,10 +374,12 @@
 
   <!-- ===== SKIM ===== -->
   <section id="screen-skim" class="screen">
-    <div class="card skim">
-      <div class="book-emoji">📖</div>
+    <div class="card skim trailer-flash" id="skim-card">
+      <img id="trailer-cover" class="trailer-cover" style="display:none;" />
+      <div class="book-emoji" id="skim-emoji">📖</div>
       <h2 style="margin-top:16px;">Skimming the book…</h2>
       <p style="color:var(--muted);" id="skim-sub">Finding the key points</p>
+      <p class="trailer-tagline" id="skim-tagline" style="display:none;"></p>
     </div>
   </section>
 
@@ -445,6 +466,10 @@
       <h2>🧊 Streak Freeze</h2>
       <p style="color:var(--muted);font-size:.85rem;">Protects your fire streak if you miss a day. Hold up to 2 at once.</p>
       <div id="freeze-shop-card"></div>
+      <div style="height:14px;"></div>
+      <h2>🎨 Reading Themes</h2>
+      <p style="color:var(--muted);font-size:.85rem;">Spend 🪙 coins to reskin the whole app with a new background.</p>
+      <div id="theme-shop-list"></div>
       <button class="btn ghost" onclick="goHome()">Back</button>
     </div>
   </section>
@@ -903,7 +928,7 @@ function defaultState(){
   return { grade:null, userName:'', stars:0, coins:0, diamonds:0, trainerLevel:1,
     owned:{characters:['ch1'], accessories:[]}, equip:{character:'ch1', accessories:[]}, history:[], customBooks:[], growth:0,
     streak:0, bestStreak:0, dailyStreak:{}, lastFireTier:0, fireInventory:[], accountEmail:'', dailyChestClaimed:{}, language:'en',
-    streakFreezes:0, frozenDays:{} };
+    streakFreezes:0, frozenDays:{}, ownedThemes:[], equippedTheme:null };
 }
 // ---------- Profiles (multiple kids/players sharing one device) ----------
 // Each profile keeps its own save under readolingo_state_<id>; readolingo_profiles
@@ -1748,6 +1773,13 @@ const CHESTS = [
   {id:'gold',name:'Golden Chest',icon:'🟨',cost:15,up:0.55},
 ];
 
+// ---------- Reading Themes (cosmetic app-wide background skins, bought with coins in the Shop) ----------
+const THEMES = [
+  {id:'space', name:'Space', icon:'🌌', cost:200, desc:'A galaxy of stars and nebulas.'},
+  {id:'underwater', name:'Underwater', icon:'🌊', cost:200, desc:'Dive into a deep-sea glow.'},
+  {id:'jungle', name:'Jungle', icon:'🌴', cost:200, desc:'A lush rainforest canopy.'},
+];
+
 // Difficulty config per grade: which difficulty bands to draw from, how many
 // multiple-choice (mc) questions, and how many open-ended (oe) questions.
 // Target test lengths. Quizzes use up to this many questions, capped by how many
@@ -2050,6 +2082,52 @@ function playCutscene({emoji='🎉', title='Level Up!', subtitle=''}={}){
 }
 function closeCutscene(){ document.getElementById('cutscene-overlay').classList.add('hidden'); }
 
+// ---------- Streak-milestone fireworks (every 5-day streak) ----------
+const FIREWORK_COLORS=['#ff4b4b','#ffc800','#58cc02','#1cb0f6','#9b59b6','#ff8c00','#ff6ec7'];
+function spawnFireworkBursts(field){
+  const origins=[{x:30,y:35},{x:70,y:30},{x:50,y:55}];
+  origins.forEach((o,oi)=>{
+    for(let i=0;i<16;i++){
+      const p=document.createElement('div');
+      p.className='firework-piece';
+      const angle=(Math.PI*2*i/16)+Math.random()*0.3;
+      const dist=60+Math.random()*60;
+      p.style.left=o.x+'%'; p.style.top=o.y+'%';
+      p.style.setProperty('--dx', Math.cos(angle)*dist+'px');
+      p.style.setProperty('--dy', Math.sin(angle)*dist+'px');
+      p.style.background=FIREWORK_COLORS[Math.floor(Math.random()*FIREWORK_COLORS.length)];
+      p.style.animationDelay=(oi*0.25)+'s';
+      field.appendChild(p);
+    }
+  });
+}
+// Synthesized celebration chime (ascending C5-E5-G5) — no external audio asset needed.
+function playChime(){
+  try{
+    const Ctx=window.AudioContext||window.webkitAudioContext; if(!Ctx) return;
+    const ctx=new Ctx(); const now=ctx.currentTime;
+    [523.25,659.25,783.99].forEach((freq,i)=>{
+      const osc=ctx.createOscillator(), gain=ctx.createGain();
+      osc.type='sine'; osc.frequency.value=freq;
+      gain.gain.setValueAtTime(0, now+i*0.12);
+      gain.gain.linearRampToValueAtTime(0.25, now+i*0.12+0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, now+i*0.12+0.4);
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(now+i*0.12); osc.stop(now+i*0.12+0.45);
+    });
+  }catch(e){}
+}
+function playFireworks(streakCount){
+  document.getElementById('cutscene-emoji').textContent='🎆';
+  document.getElementById('cutscene-title').textContent=`${streakCount}-Day Streak!`;
+  document.getElementById('cutscene-subtitle').textContent='Keep the fire going!';
+  const field=document.getElementById('cutscene-confetti');
+  field.innerHTML='';
+  spawnFireworkBursts(field);
+  document.getElementById('cutscene-overlay').classList.remove('hidden');
+  playChime();
+}
+
 // ---------- Navigation ----------
 function show(name){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
@@ -2282,6 +2360,57 @@ function renderHome(){
 function allBooks(){ return BOOKS.concat(APP.customBooks||[]); }
 function genreList(){ return [...new Set(allBooks().map(b=>b.genre))]; }
 const GENRE_ICONS={Fantasy:'🐉',Adventure:'🗺️',Animals:'🐾',Classics:'📜',Mystery:'🔍','Science Fiction':'🚀','Realistic Fiction':'🌟'};
+// ---------- Book trailer (skim screen) — local, no AI/network: genre-flash + canned tagline ----------
+const GENRE_TRAILER = {
+  Fantasy:{flash:'#a78bfa', tagline:'Enter a world of magic and legend…'},
+  Adventure:{flash:'#f6ad55', tagline:'A daring journey is about to begin…'},
+  Animals:{flash:'#68d391', tagline:'Meet a friend you will never forget…'},
+  Classics:{flash:'#d69e2e', tagline:'A timeless story awaits…'},
+  Mystery:{flash:'#718096', tagline:'A mystery is about to unfold…'},
+  'Science Fiction':{flash:'#4299e1', tagline:'The future starts now…'},
+  'Realistic Fiction':{flash:'#f687b3', tagline:'A story that feels close to home…'},
+};
+let trailerBookRef=null;
+function renderTrailer(b){
+  trailerBookRef=b;
+  const tr=GENRE_TRAILER[b.genre]||{flash:'#a0aec0', tagline:'An unforgettable story awaits…'};
+  const card=document.getElementById('skim-card');
+  card.style.background=tr.flash+'22';
+  const cover=document.getElementById('trailer-cover');
+  const emoji=document.getElementById('skim-emoji');
+  if(b.cover){ cover.src=b.cover; cover.style.display=''; emoji.style.display='none'; }
+  else {
+    cover.style.display='none'; emoji.style.display=''; emoji.textContent=GENRE_ICONS[b.genre]||'📖';
+    ensureCover(b).then(url=>{
+      if(!url || trailerBookRef!==b || document.getElementById('screen-skim').classList.contains('active')===false) return;
+      cover.src=url; cover.style.display=''; emoji.style.display='none';
+    });
+  }
+  const tag=document.getElementById('skim-tagline');
+  tag.textContent=`"${tr.tagline}" — ${b.title}, by ${b.author}`;
+  tag.style.display='';
+}
+// Looks up a real cover thumbnail from Open Library's free public API (no key needed) —
+// only title/author text is sent. Cached per session so the same book is never looked up twice.
+const coverLookupCache={};
+async function ensureCover(b){
+  const key=(b.title+'|'+b.author).toLowerCase();
+  if(key in coverLookupCache) { if(coverLookupCache[key]) b.cover=coverLookupCache[key]; return coverLookupCache[key]; }
+  coverLookupCache[key]=null; // mark in-flight/attempted so concurrent calls don't double-fetch
+  try{
+    const q=`https://openlibrary.org/search.json?title=${encodeURIComponent(b.title)}&author=${encodeURIComponent(b.author)}&limit=1&fields=cover_i`;
+    const resp=await fetch(q, { signal: AbortSignal.timeout(5000) });
+    if(!resp.ok) return null;
+    const data=await resp.json();
+    const coverId=data.docs && data.docs[0] && data.docs[0].cover_i;
+    if(!coverId) return null;
+    const url=`https://covers.openlibrary.org/b/id/${coverId}-M.jpg`;
+    coverLookupCache[key]=url;
+    b.cover=url;
+    if(b.custom){ saveState(); }
+    return url;
+  }catch(e){ return null; }
+}
 // Ranks unread books by how often their genre shows up in past history (no AI call — pure local heuristic).
 function recommendedBooks(){
   const hist=APP.history||[];
@@ -2301,7 +2430,7 @@ function renderRecommendations(){
   const all=allBooks();
   box.innerHTML=`<h3 style="margin:4px 0 6px;">✨ Recommended for you</h3>`+recs.map(b=>{
     const idx=all.indexOf(b);
-    const cover=b.cover?`<img src="${b.cover}" style="width:34px;height:46px;object-fit:cover;border-radius:6px;margin-right:10px;" />`:'';
+    const cover=b.cover?`<img src="${escapeHtml(b.cover)}" style="width:34px;height:46px;object-fit:cover;border-radius:6px;margin-right:10px;" />`:'';
     return `<div class="row" onclick="startBook(${idx})" style="cursor:pointer;">
       <div style="display:flex;align-items:center;">${cover}<div><div style="font-weight:700;">${escapeHtml(b.title)}</div>
       <div class="meta">${escapeHtml(b.author)} · ${GENRE_ICONS[b.genre]||''} ${escapeHtml(b.genre)}</div></div></div>
@@ -2320,7 +2449,7 @@ function renderMyBooks(){
   empty.textContent='';
   list.innerHTML=all.map(b=>{
     const idx=all.indexOf(b);
-    const cover=b.cover?`<img src="${b.cover}" style="width:34px;height:46px;object-fit:cover;border-radius:6px;margin-right:10px;" />`:'';
+    const cover=b.cover?`<img src="${escapeHtml(b.cover)}" style="width:34px;height:46px;object-fit:cover;border-radius:6px;margin-right:10px;" />`:'';
     return `<div class="row" onclick="startBook(${idx})" style="cursor:pointer;">
       <div style="display:flex;align-items:center;">${cover}<div><div style="font-weight:700;">${escapeHtml(b.title)}</div>
       <div class="meta">${escapeHtml(b.author)} · ${b.chapters} chapter${b.chapters===1?'':'s'}</div></div></div>
@@ -2522,7 +2651,7 @@ async function aiAddBook(){
     const mcN=data.questions.length, oeN=data.oeBank.length;
     const book={ title:data.title, author:data.author, genre:genre, custom:true, ai:true,
       chapters:data.chapters, chapterRead:data.chapterRead, lowChapterConfidence:lowConf,
-      questions:data.questions, oeBank:data.oeBank };
+      questions:data.questions, oeBank:data.oeBank, cover:'data:image/jpeg;base64,'+abScreenshot };
     APP.customBooks=APP.customBooks||[]; APP.customBooks.push(book); saveState();
     msg.style.color='var(--green-dark)';
     msg.textContent=`✅ Added “${data.title}” with ${mcN} multiple-choice + ${oeN} explain questions! Starting…`;
@@ -2954,6 +3083,20 @@ const BOSSES=[
   {name:'Sleepy Story Dragon', icon:'🐉'},
   {name:'Cliffhanger Kraken', icon:'🐙'},
 ];
+// Pre-written taunt bank spoken via the Web Speech API (speakText) during Boss Battle Mode —
+// no AI call, so there's no per-round API cost. Only fires when Boss Mode is on (opt-in).
+const BOSS_TAUNTS = {
+  hit: ["Ha! Too easy!", "Is that the best you've got?", "Reading level: not enough!", "I'm barely trying!",
+    "Wrong! Try again, hero.", "You call that an answer?", "My turn to laugh!", "Better luck next question!"],
+  miss: ["Argh! Lucky guess!", "How did you know that?!", "No fair, you actually read it!", "I'll get you next time!",
+    "Not bad, for a beginner.", "Hmph. Fine, you got me.", "That hurt more than I expected!", "Okay, okay, you're good."],
+  defeat: ["Noooo! Defeated by a reader!", "I'll be back, after you finish another book!", "You actually read the whole thing?!", "Curses! Foiled by comprehension!"],
+};
+function bossTaunt(kind){
+  if(!quiz.bossMode || !quiz.boss) return;
+  const bank=BOSS_TAUNTS[kind]||[]; if(!bank.length) return;
+  speakText(bank[Math.floor(Math.random()*bank.length)]);
+}
 let bossModeEnabled=false;
 function toggleBossMode(){
   bossModeEnabled=!bossModeEnabled;
@@ -2977,8 +3120,9 @@ function startBook(idx, genre){
   currentGenreForChapter=genre;
   if(!b.chapters){ quiz={ book:b.title, author:b.author, genre:b.genre, questions:buildQuizItems(b), current:0, answers:[], selected:null, checked:false, startTime:0, bossMode:bossModeEnabled, boss:bossModeEnabled?pickBoss():null, playerHP:bossModeEnabled?100:null, playerDefeated:false };
     document.getElementById('skim-sub').textContent=`”${b.title}” by ${b.author}`;
+    renderTrailer(b);
     show('skim');
-    setTimeout(()=>{ quiz.startTime=Date.now(); renderQuestion(); show('quiz'); }, 1800);
+    setTimeout(()=>{ quiz.startTime=Date.now(); renderQuestion(); show('quiz'); }, 2400);
   } else {
     goChapters(idx);
   }
@@ -3061,8 +3205,9 @@ async function startChapterQuiz(){
   msg.textContent='';
   quiz={ book:b.title, author:b.author, genre:b.genre, chapters:{total:totalChapters, selected:{start,end}}, questions:quizQuestions, current:0, answers:[], selected:null, checked:false, startTime:0, bossMode:bossModeEnabled, boss:bossModeEnabled?pickBoss():null, playerHP:bossModeEnabled?100:null, playerDefeated:false };
   document.getElementById('skim-sub').textContent=`”${b.title}” by ${b.author}`;
+  renderTrailer(b);
   show('skim');
-  setTimeout(()=>{ quiz.startTime=Date.now(); renderQuestion(); show('quiz'); }, 1800);
+  setTimeout(()=>{ quiz.startTime=Date.now(); renderQuestion(); show('quiz'); }, 2400);
 }
 function renderQuestion(){
   const q=quiz.questions[quiz.current], total=quiz.questions.length;
@@ -3162,6 +3307,7 @@ function nextQuestion(){
       buddyReact(correct);
       maybeGoldenTicket(correct);
       applyBossDamage(correct);
+      bossTaunt(quiz.playerDefeated?'defeat':(correct?'miss':'hit'));
       nb.textContent=(!quiz.playerDefeated && quiz.current+1<quiz.questions.length)?t('quiz_next'):t('quiz_see_results');
       return;
     }
@@ -3178,6 +3324,7 @@ function nextQuestion(){
     buddyReact(quiz.selected.isCorrect);
     maybeGoldenTicket(quiz.selected.isCorrect);
     applyBossDamage(quiz.selected.isCorrect);
+    bossTaunt(quiz.playerDefeated?'defeat':(quiz.selected.isCorrect?'miss':'hit'));
     nb.textContent=(!quiz.playerDefeated && quiz.current+1<quiz.questions.length)?t('quiz_next'):t('quiz_see_results');
     return;
   }
@@ -3282,6 +3429,9 @@ function showResults(){
       else if(passed) playCutscene({emoji:quiz.boss.icon, title:`${quiz.boss.name} defeated!`, subtitle:`You answered ${correct}/${total} correctly!`});
       else playCutscene({emoji:'💨', title:`${quiz.boss.name} got away…`, subtitle:`Score ${PASS_MARK}%+ next time to defeat it!`});
     }, 400);
+  } else if(passed && APP.streak>0 && APP.streak%5===0){
+    // Boss Battle already shows its own cutscene on this overlay, so fireworks only fire outside boss mode.
+    setTimeout(()=>playFireworks(APP.streak), 400);
   }
 }
 // ---------- Reading log notes (emoji reaction + optional text, attached to the just-logged history entry) ----------
@@ -3376,6 +3526,48 @@ function renderShop(){
       <button class="btn ${afford?'gold':''}" ${(!afford||maxed)?'disabled':''} onclick="buyFreeze()">
         ${maxed?'Freezer full':(afford?'Buy Freeze':'Need more 🪙💎')}</button>
     </div>`;
+  renderThemes();
+}
+// ---------- Reading Themes ----------
+function applyTheme(){
+  document.body.classList.remove(...THEMES.map(t=>'theme-'+t.id));
+  if(APP.equippedTheme) document.body.classList.add('theme-'+APP.equippedTheme);
+}
+function renderThemes(){
+  const wrap=document.getElementById('theme-shop-list'); if(!wrap) return;
+  const owned=APP.ownedThemes||[];
+  wrap.innerHTML=THEMES.map(th=>{
+    const isOwned=owned.includes(th.id);
+    const isEquipped=APP.equippedTheme===th.id;
+    let label, cls='', disabled=false, onclick=`buyTheme('${th.id}')`;
+    if(!isOwned){
+      const afford=APP.coins>=th.cost;
+      label=afford?`Buy (${th.cost} 🪙)`:'Need more 🪙'; cls=afford?'gold':''; disabled=!afford;
+    } else if(isEquipped){
+      label='Equipped ✅'; disabled=true;
+    } else {
+      label='Equip'; cls='secondary'; onclick=`equipTheme('${th.id}')`;
+    }
+    return `<div class="chest-card">
+      <div class="e">${th.icon}</div>
+      <div class="nm">${escapeHtml(th.name)}</div>
+      <div class="desc">${isOwned?escapeHtml(th.desc):'Cost: '+th.cost+' 🪙 · '+escapeHtml(th.desc)}</div>
+      <button class="btn ${cls}" ${disabled?'disabled':''} onclick="${onclick}">${label}</button>
+    </div>`;
+  }).join('') + (owned.length?`<button class="btn ghost" onclick="equipTheme(null)">Use Default Theme</button>`:'');
+}
+function buyTheme(id){
+  const th=THEMES.find(t=>t.id===id); if(!th) return;
+  if(APP.coins<th.cost){ alert('Not enough coins!'); return; }
+  APP.coins-=th.cost;
+  APP.ownedThemes=APP.ownedThemes||[];
+  APP.ownedThemes.push(id);
+  APP.equippedTheme=id;
+  saveState(); applyTheme(); renderWallet(); renderThemes();
+}
+function equipTheme(id){
+  if(id && !(APP.ownedThemes||[]).includes(id)) return;
+  APP.equippedTheme=id; saveState(); applyTheme(); renderThemes();
 }
 function buyChest(id){
   const chest=CHESTS.find(c=>c.id===id);
@@ -3700,6 +3892,7 @@ syncFire(); // bank any fire whose run ended while away
 document.documentElement.lang = ({en:'en',es:'es',fr:'fr',zh:'zh-CN',ja:'ja'})[APP.language] || 'en';
 rebuildAllBookLanguages(); // BOOKS was built before APP existed (English-only); re-resolve for the saved language
 applyI18n();
+applyTheme();
 if(APP.grade){ goHome(); } else { show('welcome'); }
 </script>
 </body>
